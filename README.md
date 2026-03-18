@@ -79,7 +79,7 @@ _updatePitch()
 
 ```bash
 # Clone the repository
-git clone https://github.com/<tu-usuario>/Afinador.git
+git clone https://github.com/randazzofederico-coder/Afinador.git
 cd Afinador
 
 # Install dependencies
