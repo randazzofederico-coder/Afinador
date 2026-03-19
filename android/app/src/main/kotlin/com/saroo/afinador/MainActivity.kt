@@ -1,4 +1,4 @@
-package com.example.afinador
+package com.saroo.afinador
 
 import io.flutter.embedding.android.FlutterActivity
 
