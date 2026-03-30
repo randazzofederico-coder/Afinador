@@ -9,7 +9,10 @@ A real-time musical instrument tuner built with **Flutter**. Captures audio from
 | Feature | Description |
 |---|---|
 | 🎤 **Real-time pitch detection** | Listens to the microphone and detects the fundamental frequency using the YIN algorithm (`pitch_detector_dart`) |
-| 🎯 **Note identification** | Maps the detected frequency to the nearest note (C0–B8) using MIDI math |
+| 🎯 **Note identification** | Maps the detected frequency to the nearest note (C0–B8) using MIDI math, with enharmonic display (e.g. `Db/C#`) |
+| 🎼 **Instrument Transposition** | Automatically offsets readings for transposing instruments (Bb, Eb, F, etc.) via settings |
+| 🎛️ **Custom A4 Pitch** | Configurable reference pitch (e.g., 432 Hz, 442 Hz) with persistent storage |
+| 💡 **Keep Screen On** | Prevent the device from sleeping while tuning (toggleable in settings) |
 | 📊 **Cents gauge** | Custom-painted horizontal gauge showing deviation from perfect pitch (−50 to +50 cents) |
 | 📈 **Sismograph history** | A scrolling waveform trace that records the last ~60 readings with a color gradient (green → amber → red) |
 | ⚡ **Background processing** | Pitch detection runs in a Dart `Isolate` via `compute()` to keep the UI at a smooth 60 fps |
@@ -34,7 +37,8 @@ A real-time musical instrument tuner built with **Flutter**. Captures audio from
 ```
 lib/
 ├── main.dart                  # App entry point, UI (TunerScreen, TunerIndicatorPainter, SismographPainter)
-└── audio_tuner_service.dart    # Audio recording, pitch detection, note calculation
+├── audio_tuner_service.dart   # Audio recording, pitch detection, note calculation, state management
+└── settings_screen.dart       # Configuration UI for reference pitch, transposition, and screen lock
 ```
 
 ### Data Flow
@@ -60,7 +64,7 @@ _updatePitch()
 
 | Class | Responsibility |
 |---|---|
-| `AudioTunerService` | Records audio stream, manages ring buffer, spawns isolate for pitch detection, calculates note/cents |
+| `AudioTunerService` | Records audio stream, manages ring buffer, spawns isolate for pitch detection, calculates note/cents, manages SharedPreferences |
 | `TunerResult` | Immutable data class holding note, frequencies, cents, and history |
 | `TunerScreen` | Main UI — displays note, frequencies, gauge, and sismograph using `ValueListenableBuilder` |
 | `TunerIndicatorPainter` | `CustomPainter` for the horizontal cents gauge with animated needle |
@@ -105,6 +109,8 @@ The app requests microphone access at runtime via `permission_handler`. Platform
 | [`record`](https://pub.dev/packages/record) | ^6.2.0 | Cross-platform audio recording (PCM stream) |
 | [`pitch_detector_dart`](https://pub.dev/packages/pitch_detector_dart) | ^0.0.7 | Pitch detection algorithm (YIN) |
 | [`permission_handler`](https://pub.dev/packages/permission_handler) | ^12.0.1 | Runtime permission management |
+| [`shared_preferences`](https://pub.dev/packages/shared_preferences) | ^2.3.0 | Persistent user settings storage |
+| [`wakelock_plus`](https://pub.dev/packages/wakelock_plus) | ^1.2.8 | Screen wake lock management |
 | [`ffi`](https://pub.dev/packages/ffi) | ^2.2.0 | Foreign Function Interface utilities |
 | [`cupertino_icons`](https://pub.dev/packages/cupertino_icons) | ^1.0.8 | iOS-style icons |
 
@@ -138,4 +144,4 @@ The app uses a **dark theme** (`Color(0xFF121212)`) with Material 3. The main sc
 
 ## 📄 License
 
-This project is for personal/educational use. Add your preferred license here.
+This project is for personal/educational use.

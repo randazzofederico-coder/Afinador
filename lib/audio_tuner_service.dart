@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:pitch_detector_dart/pitch_detector.dart';
 import 'package:record/record.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class TunerResult {
   final String note;
@@ -37,8 +39,67 @@ class AudioTunerService {
 
   static const int sampleRate = 44100;
   static const int bufferSize = 2048;
+  static const String _pitchPrefKey = "reference_pitch";
+  static const String _keepScreenOnKey = "keep_screen_on";
+  static const String _transpositionKey = "transposition";
+  
+  final ValueNotifier<double> referencePitch = ValueNotifier(440.0);
+  final ValueNotifier<bool> keepScreenOn = ValueNotifier(true);
+  final ValueNotifier<int> transposition = ValueNotifier(0);
 
   final ValueNotifier<bool> isRecording = ValueNotifier(false);
+  
+  AudioTunerService() {
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPitch = prefs.getDouble(_pitchPrefKey);
+    if (savedPitch != null) {
+      referencePitch.value = savedPitch;
+    }
+
+    final savedScreenOn = prefs.getBool(_keepScreenOnKey);
+    if (savedScreenOn != null) {
+      keepScreenOn.value = savedScreenOn;
+    } else {
+      keepScreenOn.value = true;
+    }
+    _applyWakelock(keepScreenOn.value);
+
+    final savedTransposition = prefs.getInt(_transpositionKey);
+    if (savedTransposition != null) {
+      transposition.value = savedTransposition;
+    }
+  }
+
+  void _applyWakelock(bool enable) {
+    if (enable) {
+      WakelockPlus.enable();
+    } else {
+      WakelockPlus.disable();
+    }
+  }
+
+  Future<void> setReferencePitch(double pitch) async {
+    referencePitch.value = pitch;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_pitchPrefKey, pitch);
+  }
+
+  Future<void> setKeepScreenOn(bool value) async {
+    keepScreenOn.value = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keepScreenOnKey, value);
+    _applyWakelock(value);
+  }
+
+  Future<void> setTransposition(int transpose) async {
+    transposition.value = transpose;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_transpositionKey, transpose);
+  }
   
   final ValueNotifier<TunerResult> resultNotifier = ValueNotifier(
     TunerResult(
@@ -50,7 +111,7 @@ class AudioTunerService {
     )
   );
 
-  final List<String> _noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  final List<String> _noteNames = ["C", "Db/C#", "D", "Eb/D#", "E", "F", "Gb/F#", "G", "Ab/G#", "A", "Bb/A#", "B"];
   
   // Ring buffer for audio (avoids memory allocation inside the listener loop)
   final Float64List _audioBuffer = Float64List(bufferSize * 2); 
@@ -165,10 +226,11 @@ class AudioTunerService {
   // ---------------------------------
 
   void _updatePitch(double pitchInHz) {
-    final double midiNoteDouble = 12 * (log(pitchInHz / 440.0) / ln2) + 69;
+    final double ref = referencePitch.value;
+    final double midiNoteDouble = 12 * (log(pitchInHz / ref) / ln2) + 69;
     final int midiNote = midiNoteDouble.round();
 
-    final double targetHz = 440.0 * pow(2.0, (midiNote - 69) / 12.0);
+    final double targetHz = ref * pow(2.0, (midiNote - 69) / 12.0);
     final double rawCents = 1200 * (log(pitchInHz / targetHz) / ln2);
 
     if ((rawCents - _smoothedCents).abs() > 100) {
@@ -182,8 +244,10 @@ class AudioTunerService {
       _centsHistory.removeLast();
     }
 
-    final String noteName = _noteNames[midiNote % 12];
-    final int octave = (midiNote ~/ 12) - 1;
+    final int transposedMidiNote = midiNote - transposition.value;
+    final int noteIndex = (transposedMidiNote % 12 + 12) % 12; // Aseguramos que sea positivo
+    final String noteName = _noteNames[noteIndex];
+    final int octave = (transposedMidiNote ~/ 12) - 1;
 
     resultNotifier.value = TunerResult(
       note: "$noteName$octave",

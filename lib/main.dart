@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'audio_tuner_service.dart';
+import 'settings_screen.dart';
 
 void main() {
   runApp(const AfinadorApp());
@@ -56,6 +57,18 @@ class _TunerScreenState extends State<TunerScreen> {
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => SettingsScreen(tunerService: _tunerService),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: ValueListenableBuilder<bool>(
         valueListenable: _tunerService.isRecording,
