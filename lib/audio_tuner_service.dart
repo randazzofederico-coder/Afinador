@@ -9,6 +9,8 @@ import 'package:record/record.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+// kIsWeb is available via package:flutter/foundation.dart
+
 class TunerResult {
   final String note;
   final double currentHz;
@@ -42,10 +44,14 @@ class AudioTunerService {
   static const String _pitchPrefKey = "reference_pitch";
   static const String _keepScreenOnKey = "keep_screen_on";
   static const String _transpositionKey = "transposition";
+  static const String _selectedDeviceIdKey = "selected_device_id";
   
   final ValueNotifier<double> referencePitch = ValueNotifier(440.0);
   final ValueNotifier<bool> keepScreenOn = ValueNotifier(true);
   final ValueNotifier<int> transposition = ValueNotifier(0);
+  final ValueNotifier<InputDevice?> selectedDevice = ValueNotifier(null);
+  final ValueNotifier<List<InputDevice>> availableDevices = ValueNotifier([]);
+  final ValueNotifier<double> currentVolume = ValueNotifier(0.0);
 
   final ValueNotifier<bool> isRecording = ValueNotifier(false);
   
@@ -72,13 +78,27 @@ class AudioTunerService {
     if (savedTransposition != null) {
       transposition.value = savedTransposition;
     }
+
+    // Load saved device ID (will be matched when devices are listed)
+    final savedDeviceId = prefs.getString(_selectedDeviceIdKey);
+    if (savedDeviceId != null) {
+      // We store the ID; we'll match it to a real InputDevice when listing
+      _pendingSavedDeviceId = savedDeviceId;
+    }
   }
 
+  String? _pendingSavedDeviceId;
+
   void _applyWakelock(bool enable) {
-    if (enable) {
-      WakelockPlus.enable();
-    } else {
-      WakelockPlus.disable();
+    try {
+      if (enable) {
+        WakelockPlus.enable();
+      } else {
+        WakelockPlus.disable();
+      }
+    } catch (e) {
+      // WakelockPlus may not fully support web — fail silently
+      debugPrint('WakelockPlus error (expected on web): $e');
     }
   }
 
@@ -99,6 +119,47 @@ class AudioTunerService {
     transposition.value = transpose;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_transpositionKey, transpose);
+  }
+
+  /// Lists available audio input devices.
+  /// On web and desktop this returns connected microphones.
+  Future<List<InputDevice>> listInputDevices() async {
+    try {
+      final devices = await _audioRecorder.listInputDevices();
+      availableDevices.value = devices;
+
+      // If we had a saved device ID, try to match it
+      if (_pendingSavedDeviceId != null) {
+        final match = devices.where((d) => d.id == _pendingSavedDeviceId);
+        if (match.isNotEmpty) {
+          selectedDevice.value = match.first;
+        }
+        _pendingSavedDeviceId = null;
+      }
+
+      return devices;
+    } catch (e) {
+      debugPrint('Error listing input devices: $e');
+      return [];
+    }
+  }
+
+  /// Sets the selected audio input device.
+  /// Pass null to use the system default.
+  Future<void> setSelectedDevice(InputDevice? device) async {
+    selectedDevice.value = device;
+    final prefs = await SharedPreferences.getInstance();
+    if (device != null) {
+      await prefs.setString(_selectedDeviceIdKey, device.id);
+    } else {
+      await prefs.remove(_selectedDeviceIdKey);
+    }
+
+    // If currently recording, restart with the new device
+    if (isRecording.value) {
+      await stop();
+      await start();
+    }
   }
   
   final ValueNotifier<TunerResult> resultNotifier = ValueNotifier(
@@ -123,11 +184,18 @@ class AudioTunerService {
   bool _isProcessing = false;
 
   Future<bool> requestPermissions() async {
-    final status = await Permission.microphone.request();
-    if (status.isGranted) {
+    if (kIsWeb) {
+      // On web, permission_handler is not supported.
+      // The record package handles getUserMedia permissions internally.
       return await _audioRecorder.hasPermission();
+    } else {
+      // Native platforms: use permission_handler
+      final status = await Permission.microphone.request();
+      if (status.isGranted) {
+        return await _audioRecorder.hasPermission();
+      }
+      return false;
     }
-    return false;
   }
 
   Future<void> start() async {
@@ -141,10 +209,11 @@ class AudioTunerService {
 
     try {
       final stream = await _audioRecorder.startStream(
-        const RecordConfig(
+        RecordConfig(
           encoder: AudioEncoder.pcm16bits,
           sampleRate: sampleRate,
           numChannels: 1,
+          device: selectedDevice.value,
         ),
       );
 
@@ -162,18 +231,37 @@ class AudioTunerService {
     if (!isRecording.value) return;
     await _recordSub?.cancel();
     isRecording.value = false;
+    currentVolume.value = 0.0;
   }
 
   void _handleAudioData(Uint8List data) {
     // Read from bytes directly via ByteData to avoid loop memory allocations
     final byteData = ByteData.view(data.buffer, data.offsetInBytes, data.lengthInBytes);
     
+    double sumSquares = 0.0;
+    
     for (int i = 0; i < byteData.lengthInBytes; i += 2) {
       int sample = byteData.getInt16(i, Endian.little);
-      _audioBuffer[_bufferIndex] = sample / 32768.0;
+      double normalized = sample / 32768.0;
+      
+      sumSquares += normalized * normalized;
+      
+      _audioBuffer[_bufferIndex] = normalized;
       
       _bufferIndex = (_bufferIndex + 1) % _audioBuffer.length;
       _samplesCount++;
+    }
+
+    // Update volume level
+    final int sampleCount = byteData.lengthInBytes ~/ 2;
+    if (sampleCount > 0) {
+      final double rms = sqrt(sumSquares / sampleCount);
+      // Amplify visually and cap at 1.0
+      double displayVolume = rms * 5.0; 
+      if (displayVolume > 1.0) displayVolume = 1.0;
+      
+      // Smooth the volume for the UI
+      currentVolume.value = currentVolume.value * 0.7 + displayVolume * 0.3;
     }
 
     // Process chunk when ready and if Isolate is not busy dropping frames
@@ -262,7 +350,10 @@ class AudioTunerService {
     _recordSub?.cancel();
     _audioRecorder.dispose();
     isRecording.dispose();
+    currentVolume.dispose();
     resultNotifier.dispose();
+    selectedDevice.dispose();
+    availableDevices.dispose();
   }
 }
 

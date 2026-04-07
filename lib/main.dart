@@ -1,9 +1,19 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'auth_gate.dart';
 import 'audio_tuner_service.dart';
 import 'settings_screen.dart';
+import 'pwa_install_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // Initialize PWA install prompt capture (web only, no-op on other platforms)
+  PwaInstallService().initialize();
   runApp(const AfinadorApp());
 }
 
@@ -14,12 +24,13 @@ class AfinadorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Afinador Musical',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF121212),
         useMaterial3: true,
       ),
-      home: const TunerScreen(),
+      home: const AuthGate(),
     );
   }
 }

@@ -18,6 +18,10 @@ A real-time musical instrument tuner built with **Flutter**. Captures audio from
 | ⚡ **Background processing** | Pitch detection runs in a Dart `Isolate` via `compute()` to keep the UI at a smooth 60 fps |
 | 🔇 **EMA smoothing** | Exponential Moving Average (α = 0.15) dampens jitter; large jumps (>100 cents) bypass the filter for instant response |
 | 🔄 **Ring buffer** | A `Float64List` ring buffer accumulates PCM samples without allocations in the hot path |
+| 🎙️ **Microphone Selection** | Choose specific input devices and monitor input levels via a real-time volume gauge |
+| 🔒 **Firebase Authentication** | Secure login across platforms with Google Sign-In and Firestore-based access control |
+| 📱 **Progressive Web App (PWA)** | Installable web application with native-like experience and easy installation |
+| ⏳ **Trial System** | 30-day trial management and pending access screen |
 
 ---
 
@@ -38,6 +42,8 @@ A real-time musical instrument tuner built with **Flutter**. Captures audio from
 lib/
 ├── main.dart                  # App entry point, UI (TunerScreen, TunerIndicatorPainter, SismographPainter)
 ├── audio_tuner_service.dart   # Audio recording, pitch detection, note calculation, state management
+├── auth_gate.dart             # Firebase authentication gate and routing
+├── onboarding_screen.dart     # User onboarding and profile completion
 └── settings_screen.dart       # Configuration UI for reference pitch, transposition, and screen lock
 ```
 
@@ -113,6 +119,10 @@ The app requests microphone access at runtime via `permission_handler`. Platform
 | [`wakelock_plus`](https://pub.dev/packages/wakelock_plus) | ^1.2.8 | Screen wake lock management |
 | [`ffi`](https://pub.dev/packages/ffi) | ^2.2.0 | Foreign Function Interface utilities |
 | [`cupertino_icons`](https://pub.dev/packages/cupertino_icons) | ^1.0.8 | iOS-style icons |
+| [`firebase_core`](https://pub.dev/packages/firebase_core) | ^3.12.1 | Firebase initialization |
+| [`firebase_auth`](https://pub.dev/packages/firebase_auth) | ^5.5.1 | Firebase authentication |
+| [`cloud_firestore`](https://pub.dev/packages/cloud_firestore) | ^5.6.5 | NoSQL cloud database for permissions |
+| [`google_sign_in`](https://pub.dev/packages/google_sign_in) | ^6.2.2 | Google Authentication provider |
 
 ---
 

@@ -1,0 +1,9 @@
+@echo off
+echo Agregando los cambios...
+git add .
+echo Creando el commit...
+git commit -m "feat: integrar Firebase Auth, PWA, selección de micrófono y sistema de prueba"
+echo Subiendo los cambios a GitHub...
+git push
+echo Todo listo!
+pause
