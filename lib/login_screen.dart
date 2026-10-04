@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class LoginScreen extends StatefulWidget {
@@ -22,6 +21,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _isLoading = false;
   String? _errorMessage;
   String? _successMessage;
+
+  static const String _noInternetMsg =
+      'No hay conexión a internet.\n'
+      'Para iniciar sesión por primera vez necesitás estar conectado. '
+      'Una vez logueado, podrás usar el Afinador sin conexión.';
+
+  bool _isNetworkError(Object error) {
+    final msg = error.toString().toLowerCase();
+    return msg.contains('socketexception') ||
+        msg.contains('network') ||
+        msg.contains('failed host lookup') ||
+        msg.contains('connection refused') ||
+        msg.contains('no address associated') ||
+        msg.contains('unreachable') ||
+        msg.contains('errno = 7') ||
+        msg.contains('clientexception');
+  }
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -92,9 +108,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         await FirebaseAuth.instance.signInWithCredential(credential);
       }
     } on FirebaseAuthException catch (e) {
-      _showError("Error al conectar con Google: ${e.message}");
+      if (_isNetworkError(e)) {
+        _showError(_noInternetMsg);
+      } else {
+        _showError("Error al conectar con Google: ${e.message}");
+      }
     } catch (e) {
-      _showError("Error al conectar con Google: $e");
+      if (_isNetworkError(e)) {
+        _showError(_noInternetMsg);
+      } else {
+        _showError("Error al conectar con Google: $e");
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -140,10 +164,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           }
         });
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'email-already-in-use') {
+        if (_isNetworkError(e)) {
+          _showError(_noInternetMsg);
+        } else if (e.code == 'email-already-in-use') {
           _showError("Ese email ya está registrado.");
         } else {
           _showError("Error: ${e.message}");
+        }
+      } catch (e) {
+        if (_isNetworkError(e)) {
+          _showError(_noInternetMsg);
+        } else {
+          _showError("Error al registrar: $e");
         }
       }
     } else {
@@ -154,10 +186,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           password: password,
         );
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'invalid-credential' || e.code == 'wrong-password' || e.code == 'user-not-found') {
+        if (_isNetworkError(e)) {
+          _showError(_noInternetMsg);
+        } else if (e.code == 'invalid-credential' || e.code == 'wrong-password' || e.code == 'user-not-found') {
           _showError("Credenciales incorrectas.");
         } else {
           _showError("Error al iniciar sesión: ${e.message}");
+        }
+      } catch (e) {
+        if (_isNetworkError(e)) {
+          _showError(_noInternetMsg);
+        } else {
+          _showError("Error al iniciar sesión: $e");
         }
       }
     }
@@ -409,8 +449,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     const SizedBox(height: 16),
 
                     // Toggle mode
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           _isRegisterMode ? "¿Ya tenés cuenta?" : "¿No tenés usuario?",

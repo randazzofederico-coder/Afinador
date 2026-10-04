@@ -1,17 +1,20 @@
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'auth_gate.dart';
 import 'audio_tuner_service.dart';
 import 'settings_screen.dart';
 import 'pwa_install_service.dart';
+import 'settings_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // Initialize settings repository (SharedPreferences) for offline access cache
+  await SettingsRepository.instance.init();
   // Initialize PWA install prompt capture (web only, no-op on other platforms)
   PwaInstallService().initialize();
   runApp(const AfinadorApp());
@@ -30,7 +33,7 @@ class AfinadorApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF121212),
         useMaterial3: true,
       ),
-      home: const AuthGate(),
+      home: const TunerScreen(),
     );
   }
 }
@@ -42,12 +45,19 @@ class TunerScreen extends StatefulWidget {
   State<TunerScreen> createState() => _TunerScreenState();
 }
 
-class _TunerScreenState extends State<TunerScreen> {
+class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
   final AudioTunerService _tunerService = AudioTunerService();
+
+  // True when the user turned the mic off with the button; in that case we
+  // don't auto-start it again when the app comes back to the foreground.
+  bool _userStopped = false;
+  // True once the app actually left the foreground (paused/hidden).
+  bool _inBackground = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Start listening on initialization
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _tunerService.start();
@@ -55,7 +65,38 @@ class _TunerScreenState extends State<TunerScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        // The tuner is useless in background: release the mic so other apps
+        // can use it and we don't end up holding a dead/silenced stream.
+        if (!_inBackground) {
+          _inBackground = true;
+          _tunerService.stop();
+        }
+        break;
+      case AppLifecycleState.resumed:
+        // Back in foreground: reboot the engine from scratch (new recorder,
+        // permission re-check, fresh stream) instead of trusting old state.
+        if (_inBackground) {
+          _inBackground = false;
+          if (!_userStopped) {
+            _tunerService.restart();
+          }
+        }
+        break;
+      case AppLifecycleState.inactive:
+        // Ignored on purpose: the permission dialog, notification shade and
+        // app switcher trigger this without the app really leaving.
+        break;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tunerService.dispose();
     super.dispose();
   }
@@ -64,7 +105,25 @@ class _TunerScreenState extends State<TunerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Afinador'),
+        title: ValueListenableBuilder<double>(
+          valueListenable: _tunerService.referencePitch,
+          builder: (context, refPitch, _) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Afinador'),
+                Text(
+                  'A4 = ${refPitch.toInt()} Hz',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white54,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -118,29 +177,20 @@ class _TunerScreenState extends State<TunerScreen> {
                         color: Colors.white70,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "Ref: ${result.targetHz.toStringAsFixed(1)} Hz",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white38,
-                      ),
-                    ),
                     const SizedBox(height: 16),
                     
                     // Visual Indicator Gauge
                     SizedBox(
                       width: MediaQuery.of(context).size.width - 40,
                       height: 50,
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween<double>(begin: 0.0, end: result.cents.toDouble()),
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOutCubic,
-                        builder: (context, animatedCents, child) {
-                          return CustomPaint(
-                            painter: TunerIndicatorPainter(animatedCents),
-                          );
-                        },
+                      // No extra animation: the needle shows exactly the
+                      // newest point of the history line (same value, same time).
+                      child: CustomPaint(
+                        painter: TunerIndicatorPainter(
+                          result.centsHistory.isNotEmpty
+                              ? result.centsHistory.first
+                              : result.cents.toDouble(),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -152,7 +202,10 @@ class _TunerScreenState extends State<TunerScreen> {
                         child: SizedBox(
                           width: MediaQuery.of(context).size.width - 40,
                           child: CustomPaint(
-                            painter: SismographPainter(result.centsHistory),
+                            painter: SismographPainter(
+                              result.centsHistory,
+                              result.noteHistory,
+                            ),
                           ),
                         ),
                       ),
@@ -170,9 +223,11 @@ class _TunerScreenState extends State<TunerScreen> {
           return FloatingActionButton(
             onPressed: () {
               if (isRec) {
+                _userStopped = true;
                 _tunerService.stop();
               } else {
-                _tunerService.start();
+                _userStopped = false;
+                _tunerService.restart();
               }
             },
             backgroundColor: Colors.blueAccent,
@@ -181,12 +236,6 @@ class _TunerScreenState extends State<TunerScreen> {
         },
       ),
     );
-  }
-
-  Color _getCentsColor(double cents) {
-    if (cents.abs() <= 5) return Colors.greenAccent;
-    if (cents.abs() <= 20) return Colors.amber;
-    return Colors.redAccent;
   }
 }
 
@@ -269,8 +318,10 @@ class TunerIndicatorPainter extends CustomPainter {
 
 class SismographPainter extends CustomPainter {
   final List<double> history;
+  /// Note of each history point; the line is cut wherever it changes.
+  final List<int> notes;
 
-  SismographPainter(this.history);
+  SismographPainter(this.history, this.notes);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -287,35 +338,29 @@ class SismographPainter extends CustomPainter {
     final path = Path();
     // Leave some padding at the top and bottom
     final usableHeight = size.height - 10;
-    final maxItems = 60;
+    final maxItems = AudioTunerService.historyLength;
     final pointSpacing = usableHeight / maxItems;
 
-    // Build the curve points
-    final List<Offset> points = [];
+    // Build the points, cutting into a new segment on every note change:
+    // each segment is measured against its own note, so joining them with a
+    // line would draw a jump that never happened.
+    final hasNotes = notes.length == history.length;
+    final List<List<Offset>> segments = [];
+    List<Offset> current = [];
     for (int i = 0; i < history.length; i++) {
+        if (hasNotes && i > 0 && notes[i] != notes[i - 1]) {
+          segments.add(current);
+          current = [];
+        }
         final double cents = history[i].clamp(-50.0, 50.0);
         final x = center + (cents / 50.0) * (size.width / 2);
         final y = 5.0 + i * pointSpacing;
-        points.add(Offset(x, y));
+        current.add(Offset(x, y));
     }
+    segments.add(current);
 
-    if (points.isNotEmpty) {
-      path.moveTo(points[0].dx, points[0].dy);
-      
-      for (int i = 0; i < points.length - 1; i++) {
-        final p0 = points[i];
-        final p1 = points[i + 1];
-        
-        // Use mid-point bezier curve for smooth interpolation
-        final midX = (p0.dx + p1.dx) / 2;
-        final midY = (p0.dy + p1.dy) / 2;
-        
-        path.quadraticBezierTo(p0.dx, p0.dy, midX, midY);
-        
-        if (i == points.length - 2) {
-           path.lineTo(p1.dx, p1.dy); // attach to last point
-        }
-      }
+    for (final segment in segments) {
+      _addMonotoneCurve(path, segment, pointSpacing);
     }
 
     // Gradient that maps X coordinate to color
@@ -344,6 +389,7 @@ class SismographPainter extends CustomPainter {
       ..shader = shader
       ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
     
     // Draw the curve directly to canvas
@@ -364,5 +410,52 @@ class SismographPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant SismographPainter oldDelegate) {
     return true; 
+  }
+
+  /// Appends one independent sub-path through [points].
+  ///
+  /// Monotone cubic interpolation (Steffen, 1990) converted to Béziers.
+  /// - Passes exactly through every measured point.
+  /// - Never overshoots: no peak/valley is drawn that isn't in the data
+  ///   (local extrema get a vertical tangent, so they land on a sample).
+  /// - O(n) with one cubicTo per segment: as cheap as the old curve.
+  ///
+  /// Y (time) is uniformly spaced, so X (cents) is a function of Y and
+  /// slopes can be expressed in "pixels per sample".
+  static void _addMonotoneCurve(Path path, List<Offset> points, double pointSpacing) {
+    if (points.isEmpty) return;
+    if (points.length == 1) {
+      // Single reading: zero-length line, drawn as a dot by the round cap.
+      path.moveTo(points[0].dx, points[0].dy);
+      path.lineTo(points[0].dx, points[0].dy);
+      return;
+    }
+
+    final n = points.length;
+    final tangents = List<double>.filled(n, 0.0);
+    tangents[0] = points[1].dx - points[0].dx;
+    tangents[n - 1] = points[n - 1].dx - points[n - 2].dx;
+    for (int i = 1; i < n - 1; i++) {
+      final dPrev = points[i].dx - points[i - 1].dx;
+      final dNext = points[i + 1].dx - points[i].dx;
+      if (dPrev * dNext <= 0) {
+        tangents[i] = 0.0; // local extremum or flat: no overshoot
+      } else {
+        final limit = min(min(dPrev.abs(), dNext.abs()), (dPrev + dNext).abs() / 4);
+        tangents[i] = 2 * dPrev.sign * limit;
+      }
+    }
+
+    path.moveTo(points[0].dx, points[0].dy);
+    final third = pointSpacing / 3;
+    for (int i = 0; i < n - 1; i++) {
+      final p0 = points[i];
+      final p1 = points[i + 1];
+      path.cubicTo(
+        p0.dx + tangents[i] / 3, p0.dy + third,
+        p1.dx - tangents[i + 1] / 3, p1.dy - third,
+        p1.dx, p1.dy,
+      );
+    }
   }
 }

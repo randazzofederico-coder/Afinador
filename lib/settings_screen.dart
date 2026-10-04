@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'audio_tuner_service.dart';
 import 'pwa_install_service.dart';
 
@@ -178,6 +179,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ],
+          // --- Acerca de Section ---
+          const SizedBox(height: 16),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.0),
+            child: Text(
+              'Acerca de',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.info_outline, color: Colors.blueAccent),
+            title: const Text('Afinador Musical'),
+            subtitle: const Text('Visitar federicorandazzo.com.ar/apps/'),
+            trailing: const Icon(Icons.open_in_new, size: 20, color: Colors.white54),
+            onTap: () async {
+              final uri = Uri.parse('https://federicorandazzo.com.ar/apps/');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -353,6 +378,16 @@ class _MicrophoneSelector extends StatelessWidget {
                           ),
                         ),
                       ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                ValueListenableBuilder<int>(
+                  valueListenable: tunerService.effectiveSampleRate,
+                  builder: (context, rate, _) {
+                    return Text(
+                      'Frecuencia de muestreo: $rate Hz',
+                      style: const TextStyle(fontSize: 12, color: Colors.white38),
                     );
                   },
                 ),

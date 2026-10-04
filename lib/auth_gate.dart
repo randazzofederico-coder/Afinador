@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'login_screen.dart';
 import 'onboarding_screen.dart';
 import 'main.dart';
+import 'settings_repository.dart';
+import 'models/permission_cache.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -16,10 +18,17 @@ class AuthGate extends StatelessWidget {
       builder: (context, snapshot) {
         // Loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF121212),
+          return Scaffold(
+            backgroundColor: const Color(0xFF121212),
             body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/icon/app_icon.png',
+                  width: 120,
+                  height: 120,
+                ),
+              ),
             ),
           );
         }
@@ -54,6 +63,12 @@ class _PermissionCheckerState extends State<_PermissionChecker> {
   bool _trialExpired = false;
   bool _trialUsed = false;
 
+  // Offline state
+  bool _isOffline = false;
+  int _daysUntilExpiry = 30;
+  bool _needsInternet = false;
+  String _needsInternetReason = '';
+
   @override
   void initState() {
     super.initState();
@@ -62,16 +77,27 @@ class _PermissionCheckerState extends State<_PermissionChecker> {
 
   Future<void> _checkPermissions() async {
     try {
+      // --- ATTEMPT ONLINE CHECK (force server, not Firestore cache) ---
       final docSnap = await FirebaseFirestore.instance
           .collection('usuarios')
           .doc(widget.user.uid)
-          .get();
+          .get(const GetOptions(source: Source.server));
 
       if (!docSnap.exists) {
         // No profile → needs onboarding
+        await SettingsRepository.instance.savePermissionCache(
+          hasAccess: false,
+          hasProfile: false,
+          rol: 'pendiente',
+          trialActive: false,
+          trialDaysLeft: 0,
+          trialExpired: false,
+          trialUsed: false,
+        );
         setState(() {
           _isLoading = false;
           _hasProfile = false;
+          _isOffline = false;
         });
         return;
       }
@@ -102,47 +128,138 @@ class _PermissionCheckerState extends State<_PermissionChecker> {
         }
       }
 
+      final hasAccess = hasAfinador || rol == 'admin' || trialActive;
+
+      // --- CACHE THE RESULT ---
+      await SettingsRepository.instance.savePermissionCache(
+        hasAccess: hasAccess,
+        hasProfile: true,
+        rol: rol,
+        trialActive: trialActive,
+        trialDaysLeft: trialDaysLeft,
+        trialExpired: trialExpired,
+        trialUsed: trialUsed,
+      );
+
       setState(() {
         _isLoading = false;
         _hasProfile = true;
-        _hasAccess = hasAfinador || rol == 'admin' || trialActive;
+        _hasAccess = hasAccess;
         _rolStatus = rol;
         _trialActive = trialActive;
         _trialDaysLeft = trialDaysLeft;
         _trialExpired = trialExpired;
         _trialUsed = trialUsed;
+        _isOffline = false;
+        _daysUntilExpiry = 30; // Just verified
       });
     } catch (e) {
-      debugPrint("Error checking permissions: $e");
-      setState(() {
-        _isLoading = false;
-        _hasProfile = false;
-      });
+      // --- OFFLINE FALLBACK ---
+      debugPrint("Firestore check failed (offline?): $e");
+      _handleOfflineFallback();
     }
   }
 
+  void _handleOfflineFallback() {
+    final cache = SettingsRepository.instance.loadPermissionCache();
+
+    if (cache == null) {
+      // Never verified online → must connect
+      setState(() {
+        _isLoading = false;
+        _needsInternet = true;
+        _needsInternetReason =
+            'Necesitás conectarte a internet al menos una vez para verificar tu acceso.';
+      });
+      return;
+    }
+
+    if (cache.isExpired) {
+      // Cache too old → must reconnect
+      setState(() {
+        _isLoading = false;
+        _needsInternet = true;
+        _needsInternetReason =
+            'Han pasado más de 30 días desde tu última verificación. '
+            'Conectate a internet para revalidar tu acceso.';
+      });
+      return;
+    }
+
+    if (!cache.hasProfile) {
+      // Profile was never created
+      setState(() {
+        _isLoading = false;
+        _needsInternet = true;
+        _needsInternetReason =
+            'Tu perfil no fue creado todavía. '
+            'Conectate a internet para completar el registro.';
+      });
+      return;
+    }
+
+    if (!cache.hasAccess) {
+      // No access in last check
+      setState(() {
+        _isLoading = false;
+        _needsInternet = true;
+        _needsInternetReason =
+            'Tu acceso no estaba habilitado en la última verificación. '
+            'Conectate a internet para verificar si cambió tu estado.';
+      });
+      return;
+    }
+
+    // Cache valid + has access → enter offline mode
+    setState(() {
+      _isLoading = false;
+      _hasProfile = true;
+      _hasAccess = true;
+      _rolStatus = cache.rol;
+      _trialActive = cache.trialActive;
+      _trialDaysLeft = cache.trialDaysLeft;
+      _trialExpired = cache.trialExpired;
+      _trialUsed = cache.trialUsed;
+      _isOffline = true;
+      _daysUntilExpiry = cache.daysUntilExpiry;
+    });
+  }
+
   Future<void> _signOut() async {
+    await SettingsRepository.instance.clearPermissionCache();
     await FirebaseAuth.instance.signOut();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF121212),
+      return Scaffold(
+        backgroundColor: const Color(0xFF121212),
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: Color(0xFF3B82F6)),
-              SizedBox(height: 16),
-              Text(
-                "Verificando acceso...",
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-            ],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Image.asset(
+              'assets/icon/app_icon.png',
+              width: 120,
+              height: 120,
+            ),
           ),
         ),
+      );
+    }
+
+    // Needs internet (no cache, expired cache, or no access in cache)
+    if (_needsInternet) {
+      return _NeedsInternetScreen(
+        reason: _needsInternetReason,
+        onRetry: () {
+          setState(() {
+            _isLoading = true;
+            _needsInternet = false;
+          });
+          _checkPermissions();
+        },
+        onSignOut: _signOut,
       );
     }
 
@@ -170,6 +287,13 @@ class _PermissionCheckerState extends State<_PermissionChecker> {
     }
 
     // Access granted → Tuner!
+    // Show offline warning banner if ≤5 days remain
+    if (_isOffline && _daysUntilExpiry <= 5) {
+      return _OfflineWarningWrapper(
+        daysLeft: _daysUntilExpiry,
+        child: const TunerScreen(),
+      );
+    }
     // Show trial banner if on trial
     if (_trialActive) {
       return _TrialBannerWrapper(
@@ -178,6 +302,61 @@ class _PermissionCheckerState extends State<_PermissionChecker> {
       );
     }
     return const TunerScreen();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Offline warning banner — shows when ≤5 days until revalidation required
+// ---------------------------------------------------------------------------
+class _OfflineWarningWrapper extends StatelessWidget {
+  final int daysLeft;
+  final Widget child;
+
+  const _OfflineWarningWrapper({required this.daysLeft, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final dayText = daysLeft == 1 ? 'día' : 'días';
+    final message = daysLeft == 0
+        ? 'Conectate a internet hoy para revalidar tu acceso'
+        : 'Conectate a internet para revalidar tu acceso · $daysLeft $dayText restantes';
+
+    return Column(
+      children: [
+        Material(
+          color: const Color(0xFF18181B),
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF4A3800), Color(0xFFF59E0B)],
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.wifi_off_rounded, color: Colors.white70, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(child: child),
+      ],
+    );
   }
 }
 
@@ -253,6 +432,152 @@ class _TrialBannerWrapper extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Needs Internet Screen — shown when no cache or expired cache
+// ---------------------------------------------------------------------------
+class _NeedsInternetScreen extends StatelessWidget {
+  final String reason;
+  final VoidCallback onRetry;
+  final VoidCallback onSignOut;
+
+  const _NeedsInternetScreen({
+    required this.reason,
+    required this.onRetry,
+    required this.onSignOut,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: const Color(0xFF18181B),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF27272A)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 30,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icon
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.elasticOut,
+                    builder: (context, value, child) {
+                      return Transform.scale(scale: value, child: child);
+                    },
+                    child: Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            const Color(0xFFF59E0B).withOpacity(0.15),
+                            const Color(0xFFEF4444).withOpacity(0.15),
+                          ],
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.wifi_off_rounded,
+                        color: Color(0xFFF59E0B),
+                        size: 34,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    "Conexión necesaria",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Text(
+                    reason,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.5),
+                      height: 1.6,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Retry button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded, size: 20),
+                      label: const Text(
+                        "Reintentar",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Sign out
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: TextButton(
+                      onPressed: onSignOut,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white30,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "Cerrar sesión",
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

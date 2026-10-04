@@ -36,8 +36,70 @@
 
   <title>Afinador Musical</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Splash screen: visible instantly while Flutter downloads/boots, and
+    visually identical to the app's own loading screen (AuthGate), so the
+    hand-off is seamless. Removed on Flutter's first rendered frame.
+  -->
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #121212;
+      color-scheme: dark;
+    }
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #121212;
+      transition: opacity 250ms ease-out;
+    }
+    #splash.splash-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #splash img {
+      width: 120px;
+      height: 120px;
+      border-radius: 20px;
+      animation: splash-breathe 1.6s ease-in-out infinite;
+    }
+    @keyframes splash-breathe {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.75; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #splash img { animation: none; }
+    }
+  </style>
 </head>
 <body>
+  <div id="splash" role="img" aria-label="Cargando Afinador">
+    <!-- Same file Flutter's Image.asset loads, so it's cached for the app. -->
+    <img src="assets/assets/icon/app_icon.png" alt="">
+  </div>
+  <script>
+    (function () {
+      var removed = false;
+      function removeSplash() {
+        if (removed) return;
+        removed = true;
+        var splash = document.getElementById('splash');
+        if (!splash) return;
+        splash.classList.add('splash-hidden');
+        setTimeout(function () { splash.remove(); }, 300);
+      }
+      // Dispatched by the Flutter web engine after its first frame.
+      window.addEventListener('flutter-first-frame', removeSplash, { once: true });
+      // Safety net: never cover the app forever if the event is missed.
+      setTimeout(removeSplash, 20000);
+    })();
+  </script>
   <script>
     // PWA Install bridge for Flutter
     function _flutterPwaPrompt(event) {
