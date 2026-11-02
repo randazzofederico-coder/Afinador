@@ -52,6 +52,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
+          // --- Cuenta del ecosistema (fede_apps_core; el Afinador no tiene biblioteca) ---
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              FacStrings.of(context).account,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const AccountSection(
+            hasLibrary: false,
+            showHeader: false,
+            iconColor: Colors.blueAccent,
+            buttonColor: Colors.blueAccent,
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 16),
+
           // --- Language ---
           const _LanguageSelector(),
           const SizedBox(height: 16),

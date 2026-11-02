@@ -29,6 +29,14 @@ void main() async {
   } catch (e) {
     debugPrint('UsageTracker init failed: $e');
   }
+  // Ecosystem account (fede_apps_core): start listening to the session.
+  // init() is synchronous and catches its own errors; guarded anyway so it
+  // can never block startup.
+  try {
+    FedeAccount.instance.init();
+  } catch (e) {
+    debugPrint('FedeAccount init failed: $e');
+  }
   runApp(const AfinadorApp());
 }
 

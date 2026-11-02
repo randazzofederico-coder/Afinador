@@ -33,7 +33,14 @@ A real-time chromatic instrument tuner built with **Flutter**. Captures audio fr
 ### 🔐 Account
 
 > [!NOTE]
-> The app needs no account: it starts directly on the tuner (`main.dart` → `TunerScreen`). The legacy login was removed (see git history); it will be replaced by a shared account package. `firebase_core` is still initialized for that purpose.
+> The app needs no account: it starts directly on the tuner (`main.dart` → `TunerScreen`) and works fully offline.
+
+Optional **ecosystem account** (shared with the other Saroo apps and the website) from the [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) package (v0.4.0):
+
+- **Settings → Account** (first section) shows `AccountSection(hasLibrary: false)`: "Continue with Google" when signed out; name/email and "Sign out" when signed in.
+- Google only: popup on web, `google_sign_in` on Android. On first sign-in the package creates the `users/{uid}` profile (same format as the site) in Firebase project `federicorandazzo-a5c9b`.
+- The Afinador has **no library**, so nothing is synced (no `LibrarySync`/adapter): the account is identity only.
+- `main.dart` calls `FedeAccount.instance.init()` after `Firebase.initializeApp` (guarded, never blocks startup). `firebase_auth`, `cloud_firestore` and `google_sign_in` come transitively from the package.
 
 ### 📱 Platform Features
 | Feature | Description |
@@ -218,13 +225,15 @@ The app uses a **dark theme** (`Color(0xFF121212)`) with Material 3. The main sc
 
 Sections, top to bottom:
 
-- **Language** — System language (default) / Español / English (first, so it's always easy to find)
+- **Account** — Optional ecosystem account (Google sign-in / sign out), from `fede_apps_core`
+- **Language** — System language (default) / Español / English
 - **Reference pitch** (400–480 Hz) with ± buttons
 - **Instrument transposition** dropdown (C, Bb, Eb, F, etc.)
 - **Keep screen on** toggle
 - **Microphone selection** (desktop/web only) with volume indicator
 - **Sample rate** — Effective capture rate in use
 - **PWA install** section (web only)
+- **More apps** — The other ecosystem apps (`fede_apps_core`)
 - **About** — Links to [federicorandazzo.com.ar/apps/](https://federicorandazzo.com.ar/apps/) and the community [forum](https://federicorandazzo.com.ar/foro/)
 
 ---
