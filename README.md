@@ -52,7 +52,8 @@ A real-time chromatic instrument tuner built with **Flutter**. Captures audio fr
 | **Microphone selection** | Choose specific input devices on desktop/web platforms with real-time volume gauge |
 | **PWA support** | Installable Progressive Web App with native-like experience, auto-detection of install capability, and manual install instructions for unsupported browsers |
 | **Web splash screen** | Web/PWA shows a branded loading screen (dark background + app icon) until Flutter renders its first frame, matching the Android app bundle |
-| **Multi-language** | Spanish and English. Follows the system language on first launch (falls back to Spanish) and can be changed from Settings. App name: *Afinador* (es) / *Tuner* (en) |
+| **Multi-language** | Spanish and English. Follows the system language on first launch (falls back to Spanish) and can be changed from the top of Settings. App name: *Afinador* (es) / *Tuner* (en) |
+| **Community forum** | Quick access from Settings → About to the [Saroo forum](https://federicorandazzo.com.ar/foro/) for questions and suggestions |
 
 ---
 
@@ -103,7 +104,7 @@ lib/
 ├── auth_gate.dart                # (not in use) Firebase auth stream, Firestore permission checker, offline fallback
 ├── login_screen.dart             # (not in use) Email/password + Google login with network error handling
 ├── onboarding_screen.dart        # (not in use) New user profile form → Firestore
-├── settings_screen.dart          # Reference pitch, transposition, wakelock, language, mic selection, sample rate, PWA install, about
+├── settings_screen.dart          # Language, reference pitch, transposition, wakelock, mic selection, sample rate, PWA install, about + forum
 ├── settings_repository.dart      # SharedPreferences singleton: app language + permission cache
 ├── locale_controller.dart        # Selected app language (null = follow system)
 ├── l10n/                         # ARB translations (es, en) + generated AppLocalizations
@@ -236,7 +237,7 @@ The app requests microphone access at runtime via `permission_handler`. Platform
 | [`firebase_auth`](https://pub.dev/packages/firebase_auth) | ^5.5.1 | Firebase authentication (not in use) |
 | [`cloud_firestore`](https://pub.dev/packages/cloud_firestore) | ^5.6.5 | NoSQL cloud database for permissions (not in use) |
 | [`google_sign_in`](https://pub.dev/packages/google_sign_in) | ^6.2.2 | Google Authentication provider (not in use) |
-| [`url_launcher`](https://pub.dev/packages/url_launcher) | ^6.3.1 | Opening external links (website) |
+| [`url_launcher`](https://pub.dev/packages/url_launcher) | ^6.3.1 | Opening external links (website, forum) |
 | [`flutter_localizations`](https://api.flutter.dev/flutter/flutter_localizations/flutter_localizations-library.html) | SDK | Localized Material/Cupertino widgets + generated `AppLocalizations` |
 | [`intl`](https://pub.dev/packages/intl) | any (pinned by Flutter SDK) | Message formatting for translations |
 
@@ -270,14 +271,16 @@ The app uses a **dark theme** (`Color(0xFF121212)`) with Material 3. The main sc
 
 ### Settings Screen
 
+Sections, top to bottom:
+
+- **Language** — System language (default) / Español / English (first, so it's always easy to find)
 - **Reference pitch** (400–480 Hz) with ± buttons
 - **Instrument transposition** dropdown (C, Bb, Eb, F, etc.)
 - **Keep screen on** toggle
-- **Language** — System language (default) / Español / English
 - **Microphone selection** (desktop/web only) with volume indicator
 - **Sample rate** — Effective capture rate in use
 - **PWA install** section (web only)
-- **About** — Link to federicorandazzo.com.ar/apps/
+- **About** — Links to [federicorandazzo.com.ar/apps/](https://federicorandazzo.com.ar/apps/) and the community [forum](https://federicorandazzo.com.ar/foro/)
 
 ---
 

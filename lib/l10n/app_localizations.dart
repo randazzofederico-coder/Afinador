@@ -194,6 +194,18 @@ abstract class AppLocalizations {
   /// **'Visitar federicorandazzo.com.ar/apps/'**
   String get visitWebsite;
 
+  /// No description provided for @forum.
+  ///
+  /// In es, this message translates to:
+  /// **'Foro'**
+  String get forum;
+
+  /// No description provided for @forumSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Consultas, sugerencias y comunidad'**
+  String get forumSubtitle;
+
   /// No description provided for @inputMicrophone.
   ///
   /// In es, this message translates to:

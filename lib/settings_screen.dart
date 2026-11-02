@@ -45,6 +45,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
+          // --- Language ---
+          const _LanguageSelector(),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 16),
+
           Text(
             l10n.referencePitch,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -144,12 +150,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
 
-          // --- Language ---
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 16),
-          const _LanguageSelector(),
-
           // --- Microphone Input Selection (only on desktop/web) ---
           if (_isDesktopPlatform) ...[
             const SizedBox(height: 16),
@@ -206,6 +206,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: const Icon(Icons.open_in_new, size: 20, color: Colors.white54),
             onTap: () async {
               final uri = Uri.parse('https://federicorandazzo.com.ar/apps/');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.forum_outlined, color: Colors.blueAccent),
+            title: Text(l10n.forum),
+            subtitle: Text(l10n.forumSubtitle),
+            trailing: const Icon(Icons.open_in_new, size: 20, color: Colors.white54),
+            onTap: () async {
+              final uri = Uri.parse('https://federicorandazzo.com.ar/foro/');
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               }

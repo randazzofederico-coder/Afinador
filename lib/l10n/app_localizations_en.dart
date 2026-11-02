@@ -58,6 +58,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get visitWebsite => 'Visit federicorandazzo.com.ar/apps/';
 
   @override
+  String get forum => 'Forum';
+
+  @override
+  String get forumSubtitle => 'Questions, suggestions and community';
+
+  @override
   String get inputMicrophone => 'Input Microphone';
 
   @override
