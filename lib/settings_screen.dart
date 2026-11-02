@@ -4,6 +4,8 @@ import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'audio_tuner_service.dart';
 import 'pwa_install_service.dart';
+import 'locale_controller.dart';
+import 'l10n/app_localizations.dart';
 
 /// Returns true when running on a desktop-class platform (web, Windows, macOS, Linux).
 bool get _isDesktopPlatform {
@@ -34,17 +36,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final pwaService = PwaInstallService();
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Configuración'),
+        title: Text(l10n.settingsTitle),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          const Text(
-            'Afinación de Referencia',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            l10n.referencePitch,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -84,11 +87,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 32),
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
             child: Text(
-              'Transposición de Instrumento',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              l10n.instrumentTransposition,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
           ),
@@ -102,19 +105,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
                 isExpanded: true,
-                items: const [
-                  DropdownMenuItem(value: 0, child: Text("C (0, Sin transposición)")),
-                  DropdownMenuItem(value: 1, child: Text("Db (+1)")),
-                  DropdownMenuItem(value: 2, child: Text("D (+2)")),
-                  DropdownMenuItem(value: 3, child: Text("Eb (+3, Saxo Alto/Barítono)")),
-                  DropdownMenuItem(value: 4, child: Text("E (+4)")),
-                  DropdownMenuItem(value: 5, child: Text("F (+5, Corno Francés)")),
-                  DropdownMenuItem(value: 6, child: Text("Gb (+6)")),
-                  DropdownMenuItem(value: -5, child: Text("G (-5)")),
-                  DropdownMenuItem(value: -4, child: Text("Ab (-4)")),
-                  DropdownMenuItem(value: -3, child: Text("A (-3)")),
-                  DropdownMenuItem(value: -2, child: Text("Bb (-2, Trompeta/Clarinete/Tenor)")),
-                  DropdownMenuItem(value: -1, child: Text("B (-1)")),
+                items: [
+                  DropdownMenuItem(value: 0, child: Text(l10n.transposeNone)),
+                  const DropdownMenuItem(value: 1, child: Text("Db (+1)")),
+                  const DropdownMenuItem(value: 2, child: Text("D (+2)")),
+                  DropdownMenuItem(value: 3, child: Text(l10n.transposeEb)),
+                  const DropdownMenuItem(value: 4, child: Text("E (+4)")),
+                  DropdownMenuItem(value: 5, child: Text(l10n.transposeF)),
+                  const DropdownMenuItem(value: 6, child: Text("Gb (+6)")),
+                  const DropdownMenuItem(value: -5, child: Text("G (-5)")),
+                  const DropdownMenuItem(value: -4, child: Text("Ab (-4)")),
+                  const DropdownMenuItem(value: -3, child: Text("A (-3)")),
+                  DropdownMenuItem(value: -2, child: Text(l10n.transposeBb)),
+                  const DropdownMenuItem(value: -1, child: Text("B (-1)")),
                 ],
                 onChanged: (int? newValue) {
                   if (newValue != null) {
@@ -130,8 +133,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             valueListenable: widget.tunerService.keepScreenOn,
             builder: (context, keepOn, _) {
               return SwitchListTile(
-                title: const Text('Mantener pantalla encendida', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('Evita que el dispositivo se bloquee mientras afinas'),
+                title: Text(l10n.keepScreenOn, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(l10n.keepScreenOnSubtitle),
                 value: keepOn,
                 onChanged: (bool value) {
                   widget.tunerService.setKeepScreenOn(value);
@@ -140,6 +143,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+
+          // --- Language ---
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 16),
+          const _LanguageSelector(),
 
           // --- Microphone Input Selection (only on desktop/web) ---
           if (_isDesktopPlatform) ...[
@@ -182,18 +191,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // --- Acerca de Section ---
           const SizedBox(height: 16),
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
             child: Text(
-              'Acerca de',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              l10n.about,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
           ),
           ListTile(
             leading: const Icon(Icons.info_outline, color: Colors.blueAccent),
-            title: const Text('Afinador Musical'),
-            subtitle: const Text('Visitar federicorandazzo.com.ar/apps/'),
+            title: Text(l10n.appTitle),
+            subtitle: Text(l10n.visitWebsite),
             trailing: const Icon(Icons.open_in_new, size: 20, color: Colors.white54),
             onTap: () async {
               final uri = Uri.parse('https://federicorandazzo.com.ar/apps/');
@@ -217,6 +226,7 @@ class _MicrophoneSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return ValueListenableBuilder<List<InputDevice>>(
       valueListenable: tunerService.availableDevices,
       builder: (context, devices, _) {
@@ -230,15 +240,15 @@ class _MicrophoneSelector extends StatelessWidget {
                   children: [
                     const Icon(Icons.mic, color: Colors.blueAccent, size: 24),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Micrófono de Entrada',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        l10n.inputMicrophone,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.refresh, size: 22),
-                      tooltip: 'Actualizar dispositivos',
+                      tooltip: l10n.refreshDevices,
                       onPressed: () {
                         tunerService.listInputDevices();
                       },
@@ -246,9 +256,9 @@ class _MicrophoneSelector extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Seleccioná qué micrófono usar para la afinación',
-                  style: TextStyle(fontSize: 13, color: Colors.white54),
+                Text(
+                  l10n.selectMicrophoneHint,
+                  style: const TextStyle(fontSize: 13, color: Colors.white54),
                 ),
                 const SizedBox(height: 12),
                 if (devices.isEmpty)
@@ -259,14 +269,14 @@ class _MicrophoneSelector extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.amber.withOpacity(0.3)),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: Colors.amber, size: 20),
-                        SizedBox(width: 10),
+                        const Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'No se detectaron dispositivos de entrada.',
-                            style: TextStyle(fontSize: 13, color: Colors.white70),
+                            l10n.noInputDevices,
+                            style: const TextStyle(fontSize: 13, color: Colors.white70),
                           ),
                         ),
                       ],
@@ -282,7 +292,7 @@ class _MicrophoneSelector extends StatelessWidget {
                       suffixIcon: selected != null
                           ? IconButton(
                               icon: const Icon(Icons.clear, size: 18),
-                              tooltip: 'Usar micrófono por defecto del sistema',
+                              tooltip: l10n.useSystemDefaultMicrophone,
                               onPressed: () {
                                 tunerService.setSelectedDevice(null);
                               },
@@ -290,12 +300,12 @@ class _MicrophoneSelector extends StatelessWidget {
                           : null,
                     ),
                     isExpanded: true,
-                    hint: const Text('Micrófono por defecto del sistema'),
+                    hint: Text(l10n.systemDefaultMicrophone),
                     items: devices.map((device) {
                       return DropdownMenuItem<String>(
                         value: device.id,
                         child: Text(
-                          device.label.isNotEmpty ? device.label : 'Dispositivo ${device.id}',
+                          device.label.isNotEmpty ? device.label : l10n.deviceFallbackName(device.id),
                           overflow: TextOverflow.ellipsis,
                         ),
                       );
@@ -321,7 +331,7 @@ class _MicrophoneSelector extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Usando: ${selected.label.isNotEmpty ? selected.label : selected.id}',
+                            l10n.usingDevice(selected.label.isNotEmpty ? selected.label : selected.id),
                             style: const TextStyle(fontSize: 12, color: Colors.blueAccent),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -337,9 +347,9 @@ class _MicrophoneSelector extends StatelessWidget {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Actividad del Micrófono',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70),
+                        Text(
+                          l10n.microphoneActivity,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70),
                         ),
                         const SizedBox(height: 8),
                         Container(
@@ -386,7 +396,7 @@ class _MicrophoneSelector extends StatelessWidget {
                   valueListenable: tunerService.effectiveSampleRate,
                   builder: (context, rate, _) {
                     return Text(
-                      'Frecuencia de muestreo: $rate Hz',
+                      l10n.sampleRate(rate),
                       style: const TextStyle(fontSize: 12, color: Colors.white38),
                     );
                   },
@@ -408,19 +418,20 @@ class _InstallButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         const Icon(Icons.download_rounded, size: 48, color: Colors.blueAccent),
         const SizedBox(height: 12),
-        const Text(
-          'Instalar Aplicación',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Text(
+          l10n.installApp,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Instalá el Afinador en tu dispositivo para acceso rápido y uso sin conexión.',
-          style: TextStyle(fontSize: 14, color: Colors.white70),
+        Text(
+          l10n.installAppDescription,
+          style: const TextStyle(fontSize: 14, color: Colors.white70),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
@@ -429,7 +440,7 @@ class _InstallButton extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: onPressed,
             icon: const Icon(Icons.install_mobile),
-            label: const Text('Instalar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            label: Text(l10n.install, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
@@ -449,6 +460,7 @@ class _InstalledBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -456,22 +468,22 @@ class _InstalledBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.check_circle, color: Colors.greenAccent, size: 32),
-          SizedBox(width: 12),
+          const Icon(Icons.check_circle, color: Colors.greenAccent, size: 32),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'App Instalada',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.greenAccent),
+                  l10n.appInstalled,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.greenAccent),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Estás usando la versión instalada del Afinador.',
-                  style: TextStyle(fontSize: 13, color: Colors.white70),
+                  l10n.appInstalledDescription,
+                  style: const TextStyle(fontSize: 13, color: Colors.white70),
                 ),
               ],
             ),
@@ -489,6 +501,7 @@ class _ManualInstallInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -496,42 +509,96 @@ class _ManualInstallInfo extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.info_outline, color: Colors.blueAccent, size: 28),
-              SizedBox(width: 10),
+              const Icon(Icons.info_outline, color: Colors.blueAccent, size: 28),
+              const SizedBox(width: 10),
               Text(
-                'Instalar Aplicación',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                l10n.installApp,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueAccent),
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
-            'Podés instalar esta app desde el menú de tu navegador:',
-            style: TextStyle(fontSize: 14, color: Colors.white70),
+            l10n.manualInstallIntro,
+            style: const TextStyle(fontSize: 14, color: Colors.white70),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           _InstructionStep(
             icon: Icons.phone_android,
             label: 'Chrome (Android)',
-            detail: 'Menú ⋮ → "Instalar aplicación" o "Añadir a pantalla de inicio"',
+            detail: l10n.manualInstallChromeAndroid,
           ),
           _InstructionStep(
             icon: Icons.desktop_windows,
             label: 'Chrome (PC)',
-            detail: 'Icono de instalación en la barra de direcciones o Menú ⋮ → "Instalar app"',
+            detail: l10n.manualInstallChromeDesktop,
           ),
           _InstructionStep(
             icon: Icons.phone_iphone,
             label: 'Safari (iOS)',
-            detail: 'Tocar el botón Compartir → "Agregar a pantalla de inicio"',
+            detail: l10n.manualInstallSafariIos,
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Language picker: "System language" (default) or a specific language.
+/// Language names are shown in their own language so users can always
+/// find theirs.
+class _LanguageSelector extends StatelessWidget {
+  const _LanguageSelector();
+
+  static const Map<String, String> _languageNames = {
+    'es': 'Español',
+    'en': 'English',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: LocaleController.instance.locale,
+      builder: (context, locale, _) {
+        return Row(
+          children: [
+            const Icon(Icons.language, color: Colors.blueAccent, size: 24),
+            const SizedBox(width: 10),
+            Text(
+              l10n.language,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: DropdownButtonFormField<String?>(
+                value: locale?.languageCode,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+                items: [
+                  DropdownMenuItem<String?>(value: null, child: Text(l10n.languageSystem)),
+                  for (final l in AppLocalizations.supportedLocales)
+                    DropdownMenuItem<String?>(
+                      value: l.languageCode,
+                      child: Text(_languageNames[l.languageCode] ?? l.languageCode),
+                    ),
+                ],
+                onChanged: (code) {
+                  LocaleController.instance.setLocale(code == null ? null : Locale(code));
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

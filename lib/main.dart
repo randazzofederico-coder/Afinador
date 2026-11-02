@@ -1,12 +1,15 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'audio_tuner_service.dart';
 import 'settings_screen.dart';
 import 'pwa_install_service.dart';
 import 'settings_repository.dart';
+import 'locale_controller.dart';
+import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +18,8 @@ void main() async {
   );
   // Initialize settings repository (SharedPreferences) for offline access cache
   await SettingsRepository.instance.init();
+  // Load the user's language choice (null = follow the system language)
+  LocaleController.instance.init();
   // Initialize PWA install prompt capture (web only, no-op on other platforms)
   PwaInstallService().initialize();
   runApp(const AfinadorApp());
@@ -25,15 +30,37 @@ class AfinadorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Afinador Musical',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        useMaterial3: true,
-      ),
-      home: const TunerScreen(),
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: LocaleController.instance.locale,
+      builder: (context, locale, _) {
+        return MaterialApp(
+          onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: const Color(0xFF121212),
+            useMaterial3: true,
+          ),
+          // null = follow the system language.
+          locale: locale,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          // Match by language only; unsupported system languages fall back
+          // to Spanish.
+          localeResolutionCallback: (deviceLocale, supported) {
+            for (final l in supported) {
+              if (l.languageCode == deviceLocale?.languageCode) return l;
+            }
+            return const Locale('es');
+          },
+          home: const TunerScreen(),
+        );
+      },
     );
   }
 }
@@ -111,7 +138,7 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Afinador'),
+                Text(AppLocalizations.of(context).appBarTitle),
                 Text(
                   'A4 = ${refPitch.toInt()} Hz',
                   style: const TextStyle(
@@ -144,10 +171,10 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
         valueListenable: _tunerService.isRecording,
         builder: (context, isRecording, _) {
           if (!isRecording) {
-            return const Center(
+            return Center(
               child: Text(
-                "Esperando micrófono...",
-                style: TextStyle(fontSize: 18, color: Colors.grey),
+                AppLocalizations.of(context).waitingForMicrophone,
+                style: const TextStyle(fontSize: 18, color: Colors.grey),
               ),
             );
           }

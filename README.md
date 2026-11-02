@@ -31,6 +31,10 @@ A real-time chromatic instrument tuner built with **Flutter**. Captures audio fr
 > See [ARCHITECTURE.md](ARCHITECTURE.md) for the full pipeline, tuning knobs and platform details.
 
 ### 🔐 Authentication & Access
+
+> [!NOTE]
+> **Currently not in use.** The app starts directly on the tuner (`main.dart` → `TunerScreen`). The auth code below (`auth_gate.dart`, `login_screen.dart`, `onboarding_screen.dart`) is kept in the repo for possible future use but is not wired in.
+
 | Feature | Description |
 |---|---|
 | **Firebase Authentication** | Secure login with Google Sign-In and email/password, with platform-aware support (Google Sign-In on Android/iOS/Web only) |
@@ -48,6 +52,29 @@ A real-time chromatic instrument tuner built with **Flutter**. Captures audio fr
 | **Microphone selection** | Choose specific input devices on desktop/web platforms with real-time volume gauge |
 | **PWA support** | Installable Progressive Web App with native-like experience, auto-detection of install capability, and manual install instructions for unsupported browsers |
 | **Web splash screen** | Web/PWA shows a branded loading screen (dark background + app icon) until Flutter renders its first frame, matching the Android app bundle |
+| **Multi-language** | Spanish and English. Follows the system language on first launch (falls back to Spanish) and can be changed from Settings. App name: *Afinador* (es) / *Tuner* (en) |
+
+---
+
+## 🌐 Localization
+
+Built with Flutter's official `flutter_localizations` + ARB files (`gen_l10n`).
+
+| File | Purpose |
+|---|---|
+| `l10n.yaml` | Generator config (template: `app_es.arb`) |
+| `lib/l10n/app_es.arb` | Spanish strings (source of truth) |
+| `lib/l10n/app_en.arb` | English strings |
+| `lib/l10n/app_localizations*.dart` | Generated code — do not edit by hand |
+| `lib/locale_controller.dart` | `ValueNotifier<Locale?>` with the user's choice (`null` = system language) |
+
+- **Usage in widgets:** `AppLocalizations.of(context).someKey`
+- **Edit a translation:** change the `.arb` file and run `flutter pub get` (or any build/run) to regenerate.
+- **Add a language:** create `lib/l10n/app_<code>.arb` with the same keys and add its native name to `_languageNames` in `settings_screen.dart`.
+- **Persistence:** the choice is stored in SharedPreferences under `app_locale` (removed when "System language" is selected).
+- **Note names** always use English notation (C, D, E…) in every language.
+- **Native app name:** Android uses `res/values/strings.xml` (Afinador) and `res/values-en/strings.xml` (Tuner). The web manifest and iOS (PWA) keep the Spanish name.
+- **Docs:** privacy policy in `privacidad.md` / `privacy.md`; store description in `descripcion.md` / `description.md`.
 
 ---
 
@@ -73,11 +100,13 @@ lib/
 ├── yin_pitch_detector.dart       # Allocation-free YIN pitch detector with early exit
 ├── sample_rate_probe_web.dart    # Web: probes the browser's real capture sample rate
 ├── sample_rate_probe_stub.dart   # No-op probe for non-web platforms
-├── auth_gate.dart                # Firebase auth stream, Firestore permission checker, offline fallback
-├── login_screen.dart             # Email/password + Google login with network error handling
-├── onboarding_screen.dart        # New user profile form → Firestore
-├── settings_screen.dart          # Reference pitch, transposition, wakelock, mic selection, sample rate, session info, logout
-├── settings_repository.dart      # SharedPreferences singleton for permission cache
+├── auth_gate.dart                # (not in use) Firebase auth stream, Firestore permission checker, offline fallback
+├── login_screen.dart             # (not in use) Email/password + Google login with network error handling
+├── onboarding_screen.dart        # (not in use) New user profile form → Firestore
+├── settings_screen.dart          # Reference pitch, transposition, wakelock, language, mic selection, sample rate, PWA install, about
+├── settings_repository.dart      # SharedPreferences singleton: app language + permission cache
+├── locale_controller.dart        # Selected app language (null = follow system)
+├── l10n/                         # ARB translations (es, en) + generated AppLocalizations
 ├── firebase_options.dart         # Firebase configuration (auto-generated, gitignored)
 ├── pwa_install_service.dart      # Cross-platform PWA install orchestrator
 ├── pwa_install_stub.dart         # No-op stub for non-web platforms
@@ -106,7 +135,7 @@ _updatePitch()   (continuous MIDI domain)
     └── ValueNotifier<TunerResult> (+ centsHistory / noteHistory)  →  UI rebuild
 ```
 
-### Data Flow — Authentication & Offline Access
+### Data Flow — Authentication & Offline Access (not in use)
 
 ```
 App Launch
@@ -139,7 +168,9 @@ Firestore check (Source.server, fuerza servidor)
 | `TunerScreen` | Main UI — note, frequencies, gauge and sismograph via `ValueListenableBuilder`; releases/rebuilds the mic on app lifecycle changes |
 | `TunerIndicatorPainter` | `CustomPainter` for the horizontal cents gauge with color-coded needle (= newest history point) |
 | `SismographPainter` | `CustomPainter` for the pitch-history trace: monotone cubic curve, cut on note change, gradient coloring and fade-out |
-| `SettingsRepository` | Singleton managing permission cache via SharedPreferences (save/load/clear) |
+| `SettingsRepository` | Singleton over SharedPreferences: app language and permission cache (save/load/clear) |
+| `LocaleController` | Holds the selected `Locale` (or `null` for system) and persists it; `MaterialApp` rebuilds on change |
+| `AppLocalizations` | Generated from the ARB files; provides every UI string |
 | `PermissionCache` | Model with 30-day expiry calculation, warning thresholds, and access state |
 | `AuthGate` | StreamBuilder on auth state → routes to Login, Onboarding, Permission checker, or Tuner |
 | `_PermissionChecker` | Firestore permission check with offline fallback, cache management, and state routing |
@@ -202,10 +233,12 @@ The app requests microphone access at runtime via `permission_handler`. Platform
 | [`wakelock_plus`](https://pub.dev/packages/wakelock_plus) | ^1.2.8 | Screen wake lock management |
 | [`cupertino_icons`](https://pub.dev/packages/cupertino_icons) | ^1.0.8 | iOS-style icons |
 | [`firebase_core`](https://pub.dev/packages/firebase_core) | ^3.12.1 | Firebase initialization |
-| [`firebase_auth`](https://pub.dev/packages/firebase_auth) | ^5.5.1 | Firebase authentication |
-| [`cloud_firestore`](https://pub.dev/packages/cloud_firestore) | ^5.6.5 | NoSQL cloud database for permissions |
-| [`google_sign_in`](https://pub.dev/packages/google_sign_in) | ^6.2.2 | Google Authentication provider |
-| [`url_launcher`](https://pub.dev/packages/url_launcher) | ^6.3.1 | Opening subscription URLs externally |
+| [`firebase_auth`](https://pub.dev/packages/firebase_auth) | ^5.5.1 | Firebase authentication (not in use) |
+| [`cloud_firestore`](https://pub.dev/packages/cloud_firestore) | ^5.6.5 | NoSQL cloud database for permissions (not in use) |
+| [`google_sign_in`](https://pub.dev/packages/google_sign_in) | ^6.2.2 | Google Authentication provider (not in use) |
+| [`url_launcher`](https://pub.dev/packages/url_launcher) | ^6.3.1 | Opening external links (website) |
+| [`flutter_localizations`](https://api.flutter.dev/flutter/flutter_localizations/flutter_localizations-library.html) | SDK | Localized Material/Cupertino widgets + generated `AppLocalizations` |
+| [`intl`](https://pub.dev/packages/intl) | any (pinned by Flutter SDK) | Message formatting for translations |
 
 ---
 
@@ -224,7 +257,7 @@ The app uses a **dark theme** (`Color(0xFF121212)`) with Material 3. The main sc
 6. **Sismograph** — Historical trace with monotone cubic interpolation, a new segment per note, and gradient fade-out
 7. **FAB button** — Toggle microphone on/off (turning it on fully restarts the audio engine)
 
-### Authentication Screens
+### Authentication Screens (not in use)
 
 | Screen | When shown |
 |---|---|
@@ -240,11 +273,11 @@ The app uses a **dark theme** (`Color(0xFF121212)`) with Material 3. The main sc
 - **Reference pitch** (400–480 Hz) with ± buttons
 - **Instrument transposition** dropdown (C, Bb, Eb, F, etc.)
 - **Keep screen on** toggle
+- **Language** — System language (default) / Español / English
 - **Microphone selection** (desktop/web only) with volume indicator
-- **Sample rate** — Effective capture rate in use ("Frecuencia de muestreo")
+- **Sample rate** — Effective capture rate in use
 - **PWA install** section (web only)
-- **Session info** — Last verification date, days until revalidation (green/orange/red)
-- **Logout** button with confirmation dialog
+- **About** — Link to federicorandazzo.com.ar/apps/
 
 ---
 
@@ -261,14 +294,16 @@ The app uses a **dark theme** (`Color(0xFF121212)`) with Material 3. The main sc
 | **Estimated latency** | ~110–140 ms (sound → screen) |
 | **History** | Last 120 readings (~2.8 s) displayed in the sismograph |
 | **Frequency range** | 20 Hz – 4,000 Hz (filters out noise/harmonics) |
-| **Offline cache** | 30-day expiry, warning at ≤5 days |
-| **Auth cache storage** | SharedPreferences (8 keys for permission state) |
+| **Offline cache** | 30-day expiry, warning at ≤5 days (auth flow, not in use) |
+| **Auth cache storage** | SharedPreferences (8 keys for permission state, auth flow, not in use) |
 
 > Fine-tuning: the main knobs (`_smoothingMs`, `_confirmMs`, `_releaseGateRatio`, `_peakDecayMs`) are grouped in the `TUNING KNOBS` block of `lib/audio_tuner_service.dart`. See [ARCHITECTURE.md](ARCHITECTURE.md#tuning-knobs).
 
 ---
 
-## 🔒 Offline Access Details
+## 🔒 Offline Access Details (auth flow, not in use)
+
+> The tuner itself needs no account or connection. This section only applies if the auth flow is re-enabled.
 
 After the first successful online login, the app caches the user's permission state locally:
 

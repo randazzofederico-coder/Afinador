@@ -1,0 +1,44 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Tuner",
+  "appBarTitle": "Tuner",
+  "waitingForMicrophone": "Waiting for microphone...",
+
+  "settingsTitle": "Settings",
+  "referencePitch": "Reference Pitch",
+  "instrumentTransposition": "Instrument Transposition",
+  "transposeNone": "C (0, No transposition)",
+  "transposeEb": "Eb (+3, Alto/Baritone Sax)",
+  "transposeF": "F (+5, French Horn)",
+  "transposeBb": "Bb (-2, Trumpet/Clarinet/Tenor Sax)",
+  "keepScreenOn": "Keep screen on",
+  "keepScreenOnSubtitle": "Prevents the device from locking while you tune",
+
+  "language": "Language",
+  "languageSystem": "System language",
+
+  "about": "About",
+  "visitWebsite": "Visit federicorandazzo.com.ar/apps/",
+
+  "inputMicrophone": "Input Microphone",
+  "refreshDevices": "Refresh devices",
+  "selectMicrophoneHint": "Choose which microphone to use for tuning",
+  "noInputDevices": "No input devices detected.",
+  "useSystemDefaultMicrophone": "Use the system default microphone",
+  "systemDefaultMicrophone": "System default microphone",
+  "deviceFallbackName": "Device {id}",
+  "usingDevice": "Using: {name}",
+  "microphoneActivity": "Microphone Activity",
+  "sampleRate": "Sample rate: {rate} Hz",
+
+  "installApp": "Install App",
+  "installAppDescription": "Install the Tuner on your device for quick access and offline use.",
+  "install": "Install",
+  "appInstalled": "App Installed",
+  "appInstalledDescription": "You are using the installed version of the Tuner.",
+  "manualInstallIntro": "You can install this app from your browser menu:",
+  "manualInstallChromeAndroid": "Menu ⋮ → \"Install app\" or \"Add to Home screen\"",
+  "manualInstallChromeDesktop": "Install icon in the address bar or Menu ⋮ → \"Install app\"",
+  "manualInstallSafariIos": "Tap the Share button → \"Add to Home Screen\""
+}

@@ -26,6 +26,25 @@ class SettingsRepository {
   }
 
   // =========================================================================
+  // APP LANGUAGE
+  // =========================================================================
+
+  static const String _keyLocale = 'app_locale';
+
+  /// Language code chosen by the user (e.g. 'es', 'en'), or null to follow
+  /// the system language.
+  String? loadLocaleCode() => _prefs.getString(_keyLocale);
+
+  /// Save the chosen language code; null means "follow the system".
+  Future<void> saveLocaleCode(String? code) async {
+    if (code == null) {
+      await _prefs.remove(_keyLocale);
+    } else {
+      await _prefs.setString(_keyLocale, code);
+    }
+  }
+
+  // =========================================================================
   // PERMISSION CACHE — Offline Access
   // =========================================================================
 

@@ -1,0 +1,49 @@
+{
+  "@@locale": "es",
+
+  "appTitle": "Afinador Musical",
+  "@appTitle": { "description": "Full app name (window/tab title, About section)" },
+  "appBarTitle": "Afinador",
+  "@appBarTitle": { "description": "Short app name shown on the tuner screen app bar" },
+  "waitingForMicrophone": "Esperando micrófono...",
+
+  "settingsTitle": "Configuración",
+  "referencePitch": "Afinación de Referencia",
+  "instrumentTransposition": "Transposición de Instrumento",
+  "transposeNone": "C (0, Sin transposición)",
+  "transposeEb": "Eb (+3, Saxo Alto/Barítono)",
+  "transposeF": "F (+5, Corno Francés)",
+  "transposeBb": "Bb (-2, Trompeta/Clarinete/Tenor)",
+  "keepScreenOn": "Mantener pantalla encendida",
+  "keepScreenOnSubtitle": "Evita que el dispositivo se bloquee mientras afinás",
+
+  "language": "Idioma",
+  "languageSystem": "Idioma del sistema",
+
+  "about": "Acerca de",
+  "visitWebsite": "Visitar federicorandazzo.com.ar/apps/",
+
+  "inputMicrophone": "Micrófono de Entrada",
+  "refreshDevices": "Actualizar dispositivos",
+  "selectMicrophoneHint": "Seleccioná qué micrófono usar para la afinación",
+  "noInputDevices": "No se detectaron dispositivos de entrada.",
+  "useSystemDefaultMicrophone": "Usar micrófono por defecto del sistema",
+  "systemDefaultMicrophone": "Micrófono por defecto del sistema",
+  "deviceFallbackName": "Dispositivo {id}",
+  "@deviceFallbackName": { "placeholders": { "id": { "type": "String" } } },
+  "usingDevice": "Usando: {name}",
+  "@usingDevice": { "placeholders": { "name": { "type": "String" } } },
+  "microphoneActivity": "Actividad del Micrófono",
+  "sampleRate": "Frecuencia de muestreo: {rate} Hz",
+  "@sampleRate": { "placeholders": { "rate": { "type": "int" } } },
+
+  "installApp": "Instalar Aplicación",
+  "installAppDescription": "Instalá el Afinador en tu dispositivo para acceso rápido y uso sin conexión.",
+  "install": "Instalar",
+  "appInstalled": "App Instalada",
+  "appInstalledDescription": "Estás usando la versión instalada del Afinador.",
+  "manualInstallIntro": "Podés instalar esta app desde el menú de tu navegador:",
+  "manualInstallChromeAndroid": "Menú ⋮ → \"Instalar aplicación\" o \"Añadir a pantalla de inicio\"",
+  "manualInstallChromeDesktop": "Icono de instalación en la barra de direcciones o Menú ⋮ → \"Instalar app\"",
+  "manualInstallSafariIos": "Tocar el botón Compartir → \"Agregar a pantalla de inicio\""
+}
