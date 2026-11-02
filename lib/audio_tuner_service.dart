@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:fede_apps_core/fede_apps_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
@@ -405,6 +406,7 @@ class AudioTunerService {
           if (fallBackIfSmallBufferFailed()) return;
           isRecording.value = false;
           currentVolume.value = 0.0;
+          UsageTracker.instance.stopActivity();
         },
         onDone: () {
           // The native side closed the stream (e.g. mic taken by another app).
@@ -412,11 +414,14 @@ class AudioTunerService {
           if (fallBackIfSmallBufferFailed()) return;
           isRecording.value = false;
           currentVolume.value = 0.0;
+          UsageTracker.instance.stopActivity();
         },
         cancelOnError: true,
       );
 
       isRecording.value = true;
+      // Usage stats: "activity" = the mic is actively listening/tuning.
+      UsageTracker.instance.startActivity();
     } catch (e) {
       debugPrint("Error starting tuner: $e");
       if (usingSmallAndroidBuffer && !_disposed) {
@@ -449,6 +454,7 @@ class AudioTunerService {
       isRecording.value = false;
       currentVolume.value = 0.0;
     }
+    await UsageTracker.instance.stopActivity();
   }
 
   void _resetDspState() {
@@ -703,6 +709,7 @@ class AudioTunerService {
     _sessionId++;
     _recordSub?.cancel();
     _recordSub = null;
+    UsageTracker.instance.stopActivity();
     _audioRecorder.dispose();
     isRecording.dispose();
     currentVolume.dispose();

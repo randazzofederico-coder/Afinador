@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:fede_apps_core/fede_apps_core.dart';
 import 'firebase_options.dart';
 import 'audio_tuner_service.dart';
 import 'settings_screen.dart';
@@ -22,6 +23,12 @@ void main() async {
   LocaleController.instance.init();
   // Initialize PWA install prompt capture (web only, no-op on other platforms)
   PwaInstallService().initialize();
+  // Local-only usage stats (fede_apps_core). Must never block startup.
+  try {
+    await UsageTracker.instance.init();
+  } catch (e) {
+    debugPrint('UsageTracker init failed: $e');
+  }
   runApp(const AfinadorApp());
 }
 
@@ -248,10 +255,17 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
         valueListenable: _tunerService.isRecording,
         builder: (context, isRec, _) {
           return FloatingActionButton(
-            onPressed: () {
+            onPressed: () async {
               if (isRec) {
                 _userStopped = true;
-                _tunerService.stop();
+                // stop() awaits UsageTracker.stopActivity(), so the prompt
+                // sees the mic as idle. User-initiated pause = quiet moment.
+                await _tunerService.stop();
+                if (!context.mounted) return;
+                EcosystemPrompts.maybeShowAppsPrompt(
+                  context,
+                  currentApp: FedeApp.afinador,
+                );
               } else {
                 _userStopped = false;
                 _tunerService.restart();

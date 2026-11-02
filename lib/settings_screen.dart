@@ -1,3 +1,4 @@
+import 'package:fede_apps_core/fede_apps_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
@@ -31,6 +32,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_isDesktopPlatform) {
       widget.tunerService.listInputDevices();
     }
+    // Quiet moment: maybe suggest the other apps (rate-limited by the package),
+    // shown over Settings once it's on screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      EcosystemPrompts.maybeShowAppsPrompt(context, currentApp: FedeApp.afinador);
+    });
   }
 
   @override
@@ -188,6 +195,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ],
+          // --- Más apps (fede_apps_core) ---
+          const SizedBox(height: 16),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Text(
+              FacStrings.of(context).moreApps,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          // The site is already linked from "Acerca de" below.
+          const EcosystemSection(
+            currentApp: FedeApp.afinador,
+            showHeader: false,
+            showSite: false,
+          ),
           // --- Acerca de Section ---
           const SizedBox(height: 16),
           const Divider(),
