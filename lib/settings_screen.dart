@@ -211,6 +211,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             currentApp: FedeApp.afinador,
             showHeader: false,
             showSite: false,
+            iconColor: Colors.blueAccent,
+            trailingColor: Colors.white54,
+            trailingSize: 20,
           ),
           // --- Acerca de Section ---
           const SizedBox(height: 16),
