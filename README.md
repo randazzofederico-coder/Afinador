@@ -30,20 +30,10 @@ A real-time chromatic instrument tuner built with **Flutter**. Captures audio fr
 
 > See [ARCHITECTURE.md](ARCHITECTURE.md) for the full pipeline, tuning knobs and platform details.
 
-### 🔐 Authentication & Access
+### 🔐 Account
 
 > [!NOTE]
-> **Currently not in use.** The app starts directly on the tuner (`main.dart` → `TunerScreen`). The auth code below (`auth_gate.dart`, `login_screen.dart`, `onboarding_screen.dart`) is kept in the repo for possible future use but is not wired in.
-
-| Feature | Description |
-|---|---|
-| **Firebase Authentication** | Secure login with Google Sign-In and email/password, with platform-aware support (Google Sign-In on Android/iOS/Web only) |
-| **Firestore access control** | Role-based permissions via `usuarios/{uid}` documents with subscription and trial tracking |
-| **Offline login** | After first successful login, permissions are cached locally (SharedPreferences) for 30 days. The app works fully offline without re-authentication |
-| **Offline warning banner** | Orange gradient banner appears when ≤5 days remain before revalidation is needed |
-| **Trial system** | 30-day free trial with admin notifications, subscription redirect, and pending access screen |
-| **Onboarding flow** | New users fill out a profile form; admin is notified automatically via `consultas_web` |
-| **Network error handling** | Login screen detects offline state via string-based error matching (avoids `dart:io` for web compatibility) and shows clear messages |
+> The app needs no account: it starts directly on the tuner (`main.dart` → `TunerScreen`). The legacy login was removed (see git history); it will be replaced by a shared account package. `firebase_core` is still initialized for that purpose.
 
 ### 📱 Platform Features
 | Feature | Description |
@@ -101,19 +91,14 @@ lib/
 ├── yin_pitch_detector.dart       # Allocation-free YIN pitch detector with early exit
 ├── sample_rate_probe_web.dart    # Web: probes the browser's real capture sample rate
 ├── sample_rate_probe_stub.dart   # No-op probe for non-web platforms
-├── auth_gate.dart                # (not in use) Firebase auth stream, Firestore permission checker, offline fallback
-├── login_screen.dart             # (not in use) Email/password + Google login with network error handling
-├── onboarding_screen.dart        # (not in use) New user profile form → Firestore
 ├── settings_screen.dart          # Language, reference pitch, transposition, wakelock, mic selection, sample rate, PWA install, about + forum
-├── settings_repository.dart      # SharedPreferences singleton: app language + permission cache
+├── settings_repository.dart      # SharedPreferences singleton: app language (+ one-time cleanup of legacy login keys)
 ├── locale_controller.dart        # Selected app language (null = follow system)
 ├── l10n/                         # ARB translations (es, en) + generated AppLocalizations
 ├── firebase_options.dart         # Firebase configuration (auto-generated, gitignored)
 ├── pwa_install_service.dart      # Cross-platform PWA install orchestrator
 ├── pwa_install_stub.dart         # No-op stub for non-web platforms
-├── pwa_install_web.dart          # Web-specific beforeinstallprompt handler
-└── models/
-    └── permission_cache.dart     # Cached permission state with 30-day expiry logic
+└── pwa_install_web.dart          # Web-specific beforeinstallprompt handler
 ```
 
 ### Data Flow — Tuning
@@ -136,29 +121,6 @@ _updatePitch()   (continuous MIDI domain)
     └── ValueNotifier<TunerResult> (+ centsHistory / noteHistory)  →  UI rebuild
 ```
 
-### Data Flow — Authentication & Offline Access (not in use)
-
-```
-App Launch
-    │
-    ▼
-Firebase Auth → ¿hay User local?
-    NO → LoginScreen (requiere internet)
-    SÍ ↓
-    ▼
-Firestore check (Source.server, fuerza servidor)
-    OK → guardar cache local (SharedPreferences) + TunerScreen
-    FAIL (sin internet) ↓
-    ▼
-¿Hay cache local?
-    NO → "Conexión necesaria" (primera vez)
-    SÍ ↓
-    ▼
-¿Cache < 30 días? + ¿hasAccess?
-    SÍ → TunerScreen (si ≤5 días → banner naranja)
-    NO → "Sesión expirada, conectate"
-```
-
 ### Key Classes
 
 | Class | Responsibility |
@@ -169,12 +131,9 @@ Firestore check (Source.server, fuerza servidor)
 | `TunerScreen` | Main UI — note, frequencies, gauge and sismograph via `ValueListenableBuilder`; releases/rebuilds the mic on app lifecycle changes |
 | `TunerIndicatorPainter` | `CustomPainter` for the horizontal cents gauge with color-coded needle (= newest history point) |
 | `SismographPainter` | `CustomPainter` for the pitch-history trace: monotone cubic curve, cut on note change, gradient coloring and fade-out |
-| `SettingsRepository` | Singleton over SharedPreferences: app language and permission cache (save/load/clear) |
+| `SettingsRepository` | Singleton over SharedPreferences: app language; removes legacy login keys on startup |
 | `LocaleController` | Holds the selected `Locale` (or `null` for system) and persists it; `MaterialApp` rebuilds on change |
 | `AppLocalizations` | Generated from the ARB files; provides every UI string |
-| `PermissionCache` | Model with 30-day expiry calculation, warning thresholds, and access state |
-| `AuthGate` | StreamBuilder on auth state → routes to Login, Onboarding, Permission checker, or Tuner |
-| `_PermissionChecker` | Firestore permission check with offline fallback, cache management, and state routing |
 | `PwaInstallService` | Captures `beforeinstallprompt` on web, provides install/installed state via ValueNotifiers |
 
 ---
@@ -230,13 +189,10 @@ The app requests microphone access at runtime via `permission_handler`. Platform
 |---|---|---|
 | [`record`](https://pub.dev/packages/record) | ^6.2.0 | Cross-platform audio recording (PCM stream) |
 | [`permission_handler`](https://pub.dev/packages/permission_handler) | ^12.0.1 | Runtime permission management |
-| [`shared_preferences`](https://pub.dev/packages/shared_preferences) | ^2.3.0 | Persistent settings & permission cache |
+| [`shared_preferences`](https://pub.dev/packages/shared_preferences) | ^2.3.0 | Persistent settings |
 | [`wakelock_plus`](https://pub.dev/packages/wakelock_plus) | ^1.2.8 | Screen wake lock management |
 | [`cupertino_icons`](https://pub.dev/packages/cupertino_icons) | ^1.0.8 | iOS-style icons |
 | [`firebase_core`](https://pub.dev/packages/firebase_core) | ^3.12.1 | Firebase initialization |
-| [`firebase_auth`](https://pub.dev/packages/firebase_auth) | ^5.5.1 | Firebase authentication (not in use) |
-| [`cloud_firestore`](https://pub.dev/packages/cloud_firestore) | ^5.6.5 | NoSQL cloud database for permissions (not in use) |
-| [`google_sign_in`](https://pub.dev/packages/google_sign_in) | ^6.2.2 | Google Authentication provider (not in use) |
 | [`url_launcher`](https://pub.dev/packages/url_launcher) | ^6.3.1 | Opening external links (website, forum) |
 | [`flutter_localizations`](https://api.flutter.dev/flutter/flutter_localizations/flutter_localizations-library.html) | SDK | Localized Material/Cupertino widgets + generated `AppLocalizations` |
 | [`intl`](https://pub.dev/packages/intl) | any (pinned by Flutter SDK) | Message formatting for translations |
@@ -257,17 +213,6 @@ The app uses a **dark theme** (`Color(0xFF121212)`) with Material 3. The main sc
    - 🔴 Red: > 20 cents (out of tune)
 6. **Sismograph** — Historical trace with monotone cubic interpolation, a new segment per note, and gradient fade-out
 7. **FAB button** — Toggle microphone on/off (turning it on fully restarts the audio engine)
-
-### Authentication Screens (not in use)
-
-| Screen | When shown |
-|---|---|
-| `LoginScreen` | No authenticated user. Google + email/password login |
-| `OnboardingScreen` | User exists but no Firestore profile. Collects name + interest |
-| `_PendingAccessScreen` | Profile exists but no subscription/trial/admin role |
-| `_NeedsInternetScreen` | Offline with no cache, expired cache, or no access in cache |
-| `_OfflineWarningWrapper` | Offline with valid cache but ≤5 days remaining |
-| `_TrialBannerWrapper` | Active trial period with days remaining counter |
 
 ### Settings Screen
 
@@ -297,25 +242,8 @@ Sections, top to bottom:
 | **Estimated latency** | ~110–140 ms (sound → screen) |
 | **History** | Last 120 readings (~2.8 s) displayed in the sismograph |
 | **Frequency range** | 20 Hz – 4,000 Hz (filters out noise/harmonics) |
-| **Offline cache** | 30-day expiry, warning at ≤5 days (auth flow, not in use) |
-| **Auth cache storage** | SharedPreferences (8 keys for permission state, auth flow, not in use) |
 
 > Fine-tuning: the main knobs (`_smoothingMs`, `_confirmMs`, `_releaseGateRatio`, `_peakDecayMs`) are grouped in the `TUNING KNOBS` block of `lib/audio_tuner_service.dart`. See [ARCHITECTURE.md](ARCHITECTURE.md#tuning-knobs).
-
----
-
-## 🔒 Offline Access Details (auth flow, not in use)
-
-> The tuner itself needs no account or connection. This section only applies if the auth flow is re-enabled.
-
-After the first successful online login, the app caches the user's permission state locally:
-
-- **What's cached**: `hasAccess`, `hasProfile`, `rol`, trial state (active/days/expired/used), and `lastVerified` timestamp
-- **Expiry**: 30 days from last online verification
-- **Warning**: Orange banner when ≤5 days remain
-- **Logout**: Clears the cache completely, requiring online re-authentication
-- **Firestore reads**: Always use `Source.server` to prevent Firestore's own cache from masking connectivity issues
-- **Error detection**: String-based matching (`socketexception`, `failed host lookup`, etc.) instead of `dart:io` imports to maintain web compatibility
 
 ---
 

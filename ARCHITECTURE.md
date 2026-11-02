@@ -14,15 +14,14 @@ lib/
 ├── sample_rate_probe_web.dart    # Web: reads the browser's real capture sample rate (js_interop)
 ├── sample_rate_probe_stub.dart   # Non-web: no-op probe (returns null)
 ├── settings_screen.dart          # Reference pitch, transposition, wakelock, mic selection, sample-rate info
-├── auth_gate.dart / login_screen.dart / onboarding_screen.dart   # Firebase auth flow
-├── settings_repository.dart / models/permission_cache.dart       # Offline permission cache
+├── settings_repository.dart      # App language (SharedPreferences) + one-time cleanup of legacy login keys
 └── pwa_install_service.dart / pwa_install_web.dart / pwa_install_stub.dart
 web/
 └── index.html                    # HTML splash screen shown until Flutter's first frame
 ```
 
 > [!NOTE]
-> `AfinadorApp.home` is currently `TunerScreen` directly. `AuthGate` (Firebase login, trial, offline cache) is implemented but not wired as the home route.
+> `AfinadorApp.home` is `TunerScreen` directly. The legacy login was removed (see git history); it will be replaced by a shared account package.
 
 ---
 
