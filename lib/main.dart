@@ -74,6 +74,11 @@ class AfinadorApp extends StatelessWidget {
             return const Locale('es');
           },
           home: const TunerScreen(),
+          // Web en teléfonos: siempre vertical (fede_apps_core).
+          builder: (context, child) => PortraitOnly(
+            backgroundColor: const Color(0xFF121212),
+            child: child!,
+          ),
         );
       },
     );
