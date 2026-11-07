@@ -13,7 +13,7 @@ lib/
 ├── yin_pitch_detector.dart       # Allocation-free YIN with early exit (replaces pitch_detector_dart)
 ├── sample_rate_probe_web.dart    # Web: reads the browser's real capture sample rate (js_interop)
 ├── sample_rate_probe_stub.dart   # Non-web: no-op probe (returns null)
-├── settings_screen.dart          # Reference pitch, transposition, wakelock, mic selection, sample-rate info
+├── settings_screen.dart          # Account, language, reference pitch, transposition, wakelock, mic selection, sample-rate info, More apps, about
 ├── settings_repository.dart      # App language (SharedPreferences) + one-time cleanup of legacy login keys
 └── pwa_install_service.dart / pwa_install_web.dart / pwa_install_stub.dart
 web/
@@ -21,7 +21,7 @@ web/
 ```
 
 > [!NOTE]
-> `AfinadorApp.home` is `TunerScreen` directly. The legacy login was removed (see git history); it will be replaced by a shared account package.
+> `AfinadorApp.home` is `TunerScreen` directly (no login gate). The legacy login was removed (see git history); the optional ecosystem account now comes from `fede_apps_core` (see [§8](#8-ecosystem-integration-fede_apps_core)).
 
 ---
 
@@ -137,3 +137,21 @@ Draws the −50…+50 ¢ gauge. The needle value is `centsHistory.first` (no ext
 ## 7. Web / PWA splash
 
 [web/index.html](web/index.html) shows an HTML splash (`#121212` background, app icon 120 px with a soft "breathing" animation, disabled under `prefers-reduced-motion`) from the very first byte. It is removed on Flutter's `flutter-first-frame` event, with a 20 s safety timeout. `html`/`body` background is also `#121212` to avoid a white flash.
+
+---
+
+## 8. Ecosystem integration (`fede_apps_core`)
+
+Shared package ([repo](https://github.com/randazzofederico-coder/fede_apps_core)), referenced as `path: ../fede_apps_core` (0.5.1 in `pubspec.lock`). Nothing here may block startup or the tuner.
+
+**Startup (`main()`):** `Firebase.initializeApp` → `SettingsRepository.init` → `LocaleController.init` → `PwaInstallService.initialize` → `UsageTracker.instance.init()` (try/catch) → `FedeAccount.instance.init()` (try/catch) → `runApp`.
+
+| Piece | Hook | Notes |
+|---|---|---|
+| `UsageTracker` | `AudioTunerService`: `startActivity()` once the stream is listening; `stopActivity()` in `_stopInternal()` (awaited), stream `onError` / `onDone` and `dispose()` | Local only. Activity does **not** continue in background (the mic is released on `paused`/`hidden`). |
+| `EcosystemPrompts.maybeShowAppsPrompt(currentApp: FedeApp.afinador)` | `SettingsScreen.initState` (post-frame) · FAB pause, **after** `await stop()` so the tracker already sees the mic as idle | Eligible with ≥ 5 active days or ≥ 30 min of activity, never while the mic is on; `PromptGate`: one suggestion per session/day, 14-day cooldown, max 3. |
+| `EcosystemSection` | Settings → More apps (`showHeader: false`, `showSite: false`) | Header uses `FacStrings.of(context).moreApps`; the site link lives in About. |
+| `AccountSection(hasLibrary: false)` + `FedeAccount` | Settings → Account (first section) | Identity only: no `LibrarySync`, no adapter. |
+| `PortraitOnly` | `MaterialApp.builder` | Web on phones only; native platforms untouched. |
+
+**Firebase web config:** `lib/firebase_options.dart` is gitignored. Its `web` options use the website's `apiKey` / `appId` (`AIzaSyB-J7F5pH90Zmk5VZ1jdsoPQvrNwPgy_f4` / `1:858245145787:web:9f041f6423348bca05b59e`) so the Firebase Auth session is shared with federicorandazzo.com.ar (same origin, session stored per `apiKey`). `flutterfire configure` would write the app's own web app instead — restore both values after regenerating.

@@ -2,6 +2,21 @@
 
 A real-time chromatic instrument tuner built with **Flutter**. Captures audio from the microphone, detects the fundamental pitch using the YIN algorithm, identifies the closest musical note, and displays the deviation in cents — all with a sleek dark-mode UI. Part of the [Saroo Apps](https://federicorandazzo.com.ar/apps/) ecosystem for musicians.
 
+**Current version: 1.2.0** (build 9, `pubspec.yaml` → `version: 1.2.0+9`). Web: [federicorandazzo.com.ar/afinador/](https://federicorandazzo.com.ar/afinador/) · Android: `com.saroo.afinador`.
+
+---
+
+## 🆕 What's new in 1.2.0 (Novedades)
+
+- **Ecosystem account in Settings** — first section, `AccountSection(hasLibrary: false)`: optional Google sign-in shared with the other apps and the website. The Afinador has no library, so nothing is synced.
+- **Other apps suggestion** — after good usage (≥ 5 different days or ≥ 30 min tuning) a one-time sheet suggests the other apps, shown only in quiet moments: entering Settings or pausing the mic with the FAB. Rate-limited by the package (max. one suggestion per session/day, 14-day cooldown, 3 times max).
+- **"More apps" section** in Settings with the other ecosystem apps (real icons, "Beta" tag, links by status).
+- **Local usage stats** (`UsageTracker`): opens, active days, foreground minutes and tuning time, stored only on the device (nothing is sent anywhere).
+- **Portrait lock on phone web** (`PortraitOnly`): on phones the web version always stays vertical; in landscape a "Rotate your phone" notice covers the app without re-laying it out. Tablets, desktop and native apps are unaffected.
+- **Legacy login removed** — the old login/`AuthGate` (dead code) is gone; the app opens straight on the tuner.
+
+All of the above comes from the shared [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) package (see [Ecosystem integration](#-ecosystem-integration-fede_apps_core)).
+
 ---
 
 ## ✨ Features
@@ -35,12 +50,25 @@ A real-time chromatic instrument tuner built with **Flutter**. Captures audio fr
 > [!NOTE]
 > The app needs no account: it starts directly on the tuner (`main.dart` → `TunerScreen`) and works fully offline.
 
-Optional **ecosystem account** (shared with the other Saroo apps and the website) from the [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) package (v0.4.0):
+Optional **ecosystem account** (shared with the other Saroo apps and the website) from the [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) package (v0.5.1):
 
 - **Settings → Account** (first section) shows `AccountSection(hasLibrary: false)`: "Continue with Google" when signed out; name/email and "Sign out" when signed in.
 - Google only: popup on web, `google_sign_in` on Android. On first sign-in the package creates the `users/{uid}` profile (same format as the site) in Firebase project `federicorandazzo-a5c9b`.
 - The Afinador has **no library**, so nothing is synced (no `LibrarySync`/adapter): the account is identity only.
 - `main.dart` calls `FedeAccount.instance.init()` after `Firebase.initializeApp` (guarded, never blocks startup). `firebase_auth`, `cloud_firestore` and `google_sign_in` come transitively from the package.
+- **Shared session with the website:** the web build uses the same Firebase web config as the site (see [Firebase configuration](#firebase-configuration)), so signing in on federicorandazzo.com.ar also signs in the web Afinador and vice versa.
+
+### 🌱 Ecosystem integration (`fede_apps_core`)
+
+| Piece | Where | What it does in the Afinador |
+|---|---|---|
+| `UsageTracker` | `main.dart` (`init()`, guarded), `AudioTunerService` | Local-only usage stats (SharedPreferences, `fac_usage_*`). "Activity" = mic listening: `startActivity()` when the stream starts, `stopActivity()` on stop, stream error/close and dispose. Does not continue in background (the mic is released). |
+| `EcosystemPrompts.maybeShowAppsPrompt` | `SettingsScreen.initState` (post-frame) and the FAB when pausing the mic | Suggests the other apps only after good usage and never while the mic is on; frequency limited by `PromptGate`. |
+| `EcosystemSection` | Settings → **More apps** | Metrónomo, Atril, Generador de Tonos with real icon, "Beta" tag and tagline. `showSite: false` (the site is already linked from About). |
+| `AccountSection` / `FedeAccount` | Settings → **Account** | See above. |
+| `PortraitOnly` | `MaterialApp.builder` | Phone web always vertical (`backgroundColor: 0xFF121212`). |
+
+Ecosystem texts come from `FacStrings` (Spanish / English, like the app).
 
 ### 📱 Platform Features
 | Feature | Description |
@@ -49,6 +77,7 @@ Optional **ecosystem account** (shared with the other Saroo apps and the website
 | **Microphone selection** | Choose specific input devices on desktop/web platforms with real-time volume gauge |
 | **PWA support** | Installable Progressive Web App with native-like experience, auto-detection of install capability, and manual install instructions for unsupported browsers |
 | **Web splash screen** | Web/PWA shows a branded loading screen (dark background + app icon) until Flutter renders its first frame, matching the Android app bundle |
+| **Portrait on phone web** | `PortraitOnly` (`fede_apps_core`) keeps the web version vertical on phones (shortest side < 600); landscape shows a "Rotate your phone" notice and the UI is never re-laid out |
 | **Multi-language** | Spanish and English. Follows the system language on first launch (falls back to Spanish) and can be changed from the top of Settings. App name: *Afinador* (es) / *Tuner* (en) |
 | **Community forum** | Quick access from Settings → About to the [Saroo forum](https://federicorandazzo.com.ar/foro/) for questions and suggestions |
 
@@ -150,13 +179,15 @@ _updatePitch()   (continuous MIDI domain)
 ### Prerequisites
 
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) (≥ 3.10.4)
+- [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) cloned **next to** this repo (`pubspec.yaml` uses `path: ../fede_apps_core`)
 - A physical device with a microphone (emulators may not support real-time audio input)
-- Firebase project configured (see `firebase_options.dart`)
+- `lib/firebase_options.dart` (not versioned, see [Firebase configuration](#firebase-configuration))
 
 ### Installation
 
 ```bash
-# Clone the repository
+# Clone both repositories side by side (e.g. C:\dev\Afinador and C:\dev\fede_apps_core)
+git clone https://github.com/randazzofederico-coder/fede_apps_core.git
 git clone https://github.com/randazzofederico-coder/Afinador.git
 cd Afinador
 
@@ -167,6 +198,26 @@ flutter pub get
 flutter run
 ```
 
+> After updating `fede_apps_core`, run `flutter pub get` again: the package version is recorded in `pubspec.lock` (currently 0.5.1). To build without the sibling folder (CI, another machine) replace the path dependency with `git: { url: https://github.com/randazzofederico-coder/fede_apps_core.git, ref: v0.5.1 }`.
+
+### Firebase configuration
+
+`lib/firebase_options.dart`, `android/app/google-services.json` and the iOS/macOS `GoogleService-Info.plist` are **gitignored**. Project: `federicorandazzo-a5c9b` (`firebase.json` holds the FlutterFire mapping).
+
+> [!IMPORTANT]
+> The **web** config in `firebase_options.dart` must use the **same `apiKey` / `appId` as the website** so the session is shared (Firebase stores the session per `apiKey`):
+>
+> ```dart
+> static const FirebaseOptions web = FirebaseOptions(
+>   apiKey: 'AIzaSyB-J7F5pH90Zmk5VZ1jdsoPQvrNwPgy_f4',
+>   appId: '1:858245145787:web:9f041f6423348bca05b59e',
+>   // messagingSenderId, projectId: 'federicorandazzo-a5c9b',
+>   // authDomain: 'federicorandazzo-a5c9b.firebaseapp.com', storageBucket: as generated
+> );
+> ```
+>
+> `flutterfire configure` regenerates the file with the app's own web app (`firebase.json` points to a different web `appId`). **If you regenerate it, put these two values back.**
+
 ### Building
 
 ```bash
@@ -176,9 +227,11 @@ flutter build apk
 # Android App Bundle (Play Store)
 flutter build appbundle --release
 
-# Web
-flutter build web
+# Web (as deployed: served from /afinador/)
+flutter build web --wasm --base-href "/afinador/"
 ```
+
+**Web deploy:** done from the website repo (`mi-web-fede/deploy.ps1`, option **2 – Afinador**): it runs the build above in `C:\dev\Afinador`, mirrors `build/web` into `public/afinador/`, builds the Astro site (which copies it to `dist/afinador/`) and replaces only that folder on the server.
 
 ### Permissions
 
@@ -201,6 +254,7 @@ The app requests microphone access at runtime via `permission_handler`. Platform
 | [`cupertino_icons`](https://pub.dev/packages/cupertino_icons) | ^1.0.8 | iOS-style icons |
 | [`firebase_core`](https://pub.dev/packages/firebase_core) | ^3.12.1 | Firebase initialization |
 | [`url_launcher`](https://pub.dev/packages/url_launcher) | ^6.3.1 | Opening external links (website, forum) |
+| [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) | path `../fede_apps_core` (0.5.1) | Shared ecosystem code: account, usage stats, other-apps suggestion, "More apps", portrait lock on phone web. Brings `firebase_auth`, `cloud_firestore`, `google_sign_in` transitively |
 | [`flutter_localizations`](https://api.flutter.dev/flutter/flutter_localizations/flutter_localizations-library.html) | SDK | Localized Material/Cupertino widgets + generated `AppLocalizations` |
 | [`intl`](https://pub.dev/packages/intl) | any (pinned by Flutter SDK) | Message formatting for translations |
 
@@ -219,9 +273,11 @@ The app uses a **dark theme** (`Color(0xFF121212)`) with Material 3. The main sc
    - 🟡 Amber: ≤ 20 cents (close)
    - 🔴 Red: > 20 cents (out of tune)
 6. **Sismograph** — Historical trace with monotone cubic interpolation, a new segment per note, and gradient fade-out
-7. **FAB button** — Toggle microphone on/off (turning it on fully restarts the audio engine)
+7. **FAB button** — Toggle microphone on/off (turning it on fully restarts the audio engine; pausing it is a "quiet moment" where the other-apps suggestion may appear)
 
 ### Settings Screen
+
+Opening Settings is also a "quiet moment": the other-apps suggestion may appear on top (only with good usage, rate-limited).
 
 Sections, top to bottom:
 
