@@ -209,8 +209,8 @@ flutter run
 >
 > ```dart
 > static const FirebaseOptions web = FirebaseOptions(
->   apiKey: 'AIzaSyB-J7F5pH90Zmk5VZ1jdsoPQvrNwPgy_f4',
->   appId: '1:858245145787:web:9f041f6423348bca05b59e',
+>   apiKey: '<PUBLIC_FIREBASE_API_KEY del .env del sitio>',
+>   appId: '<PUBLIC_FIREBASE_APP_ID del .env del sitio>',
 >   // messagingSenderId, projectId: 'federicorandazzo-a5c9b',
 >   // authDomain: 'federicorandazzo-a5c9b.firebaseapp.com', storageBucket: as generated
 > );

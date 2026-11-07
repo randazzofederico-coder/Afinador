@@ -154,4 +154,4 @@ Shared package ([repo](https://github.com/randazzofederico-coder/fede_apps_core)
 | `AccountSection(hasLibrary: false)` + `FedeAccount` | Settings → Account (first section) | Identity only: no `LibrarySync`, no adapter. |
 | `PortraitOnly` | `MaterialApp.builder` | Web on phones only; native platforms untouched. |
 
-**Firebase web config:** `lib/firebase_options.dart` is gitignored. Its `web` options use the website's `apiKey` / `appId` (`AIzaSyB-J7F5pH90Zmk5VZ1jdsoPQvrNwPgy_f4` / `1:858245145787:web:9f041f6423348bca05b59e`) so the Firebase Auth session is shared with federicorandazzo.com.ar (same origin, session stored per `apiKey`). `flutterfire configure` would write the app's own web app instead — restore both values after regenerating.
+**Firebase web config:** `lib/firebase_options.dart` is gitignored. Its `web` options use the website's `apiKey` / `appId` (`PUBLIC_FIREBASE_API_KEY (ver .env del sitio)` / `PUBLIC_FIREBASE_APP_ID`) so the Firebase Auth session is shared with federicorandazzo.com.ar (same origin, session stored per `apiKey`). `flutterfire configure` would write the app's own web app instead — restore both values after regenerating.
