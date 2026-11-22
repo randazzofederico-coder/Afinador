@@ -37,6 +37,14 @@ void main() async {
   } catch (e) {
     debugPrint('FedeAccount init failed: $e');
   }
+  try {
+    UsageReporter.instance.configure(
+      app: FedeApp.afinador,
+      appVersion: '1.2.0+10',
+    );
+  } catch (e) {
+    debugPrint('UsageReporter configure failed: $e');
+  }
   runApp(const AfinadorApp());
 }
 
