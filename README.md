@@ -2,16 +2,17 @@
 
 A real-time chromatic instrument tuner built with **Flutter**. Captures audio from the microphone, detects the fundamental pitch using the YIN algorithm, identifies the closest musical note, and displays the deviation in cents — all with a sleek dark-mode UI. Part of the [Saroo Apps](https://federicorandazzo.com.ar/apps/) ecosystem for musicians.
 
-**Current version: 1.2.0** (build 9, `pubspec.yaml` → `version: 1.2.0+9`). Web: [federicorandazzo.com.ar/afinador/](https://federicorandazzo.com.ar/afinador/) · Android: `com.saroo.afinador`.
+**Current version: 1.2.1** (build 11, `pubspec.yaml` → `version: 1.2.1+11`). Web: [federicorandazzo.com.ar/afinador/](https://federicorandazzo.com.ar/afinador/) · Android: `com.saroo.afinador`.
 
 ---
 
-## 🆕 What's new in 1.2.0 (Novedades)
+## 🆕 What's new in 1.2.1 & 1.2.0 (Novedades)
 
+- **1.2.1 — Hybrid analytics & Data Safety (`fede_apps_core` v0.7.0):** anonymous aggregate metrics (`appstats.federicorandazzo.com.ar` via GoatCounter, no cookies/PII) plus optional per-account usage summary (`users/{uid}/appUsage/afinador` in Firestore when signed in with Google) via `UsageReporter`; mic audio remains 100% local in RAM.
 - **Ecosystem account in Settings** — first section, `AccountSection(hasLibrary: false)`: optional Google sign-in shared with the other apps and the website. The Afinador has no library, so nothing is synced.
 - **Other apps suggestion** — after good usage (≥ 5 different days or ≥ 30 min tuning) a one-time sheet suggests the other apps, shown only in quiet moments: entering Settings or pausing the mic with the FAB. Rate-limited by the package (max. one suggestion per session/day, 14-day cooldown, 3 times max).
 - **"More apps" section** in Settings with the other ecosystem apps (real icons, "Beta" tag, links by status).
-- **Local usage stats** (`UsageTracker`): opens, active days, foreground minutes and tuning time, stored only on the device (nothing is sent anywhere).
+- **Hybrid usage stats** (`UsageTracker` + `UsageReporter`): opens, active days, foreground minutes and tuning time, stored locally and summarized anonymously to GoatCounter (and to Firestore `appUsage/afinador` only when signed in).
 - **Portrait lock on phone web** (`PortraitOnly`): on phones the web version always stays vertical; in landscape a "Rotate your phone" notice covers the app without re-laying it out. Tablets, desktop and native apps are unaffected.
 - **Legacy login removed** — the old login/`AuthGate` (dead code) is gone; the app opens straight on the tuner.
 
@@ -50,7 +51,7 @@ All of the above comes from the shared [`fede_apps_core`](https://github.com/ran
 > [!NOTE]
 > The app needs no account: it starts directly on the tuner (`main.dart` → `TunerScreen`) and works fully offline.
 
-Optional **ecosystem account** (shared with the other Saroo apps and the website) from the [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) package (v0.5.1):
+Optional **ecosystem account** (shared with the other Saroo apps and the website) from the [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) package (v0.7.0):
 
 - **Settings → Account** (first section) shows `AccountSection(hasLibrary: false)`: "Continue with Google" when signed out; name/email and "Sign out" when signed in.
 - Google only: popup on web, `google_sign_in` on Android. On first sign-in the package creates the `users/{uid}` profile (same format as the site) in Firebase project `federicorandazzo-a5c9b`.
@@ -62,7 +63,7 @@ Optional **ecosystem account** (shared with the other Saroo apps and the website
 
 | Piece | Where | What it does in the Afinador |
 |---|---|---|
-| `UsageTracker` | `main.dart` (`init()`, guarded), `AudioTunerService` | Local-only usage stats (SharedPreferences, `fac_usage_*`). "Activity" = mic listening: `startActivity()` when the stream starts, `stopActivity()` on stop, stream error/close and dispose. Does not continue in background (the mic is released). |
+| `UsageTracker` / `UsageReporter` | `main.dart` (`init()` / `configure()`, guarded), `AudioTunerService` | Tracks opens, active days, foreground minutes and tuning time ("Activity" = mic listening; stops on pause/dispose, never in background). Sends anonymous aggregate hits to GoatCounter and signed-in summaries to Firestore `users/{uid}/appUsage/afinador`. |
 | `EcosystemPrompts.maybeShowAppsPrompt` | `SettingsScreen.initState` (post-frame) and the FAB when pausing the mic | Suggests the other apps only after good usage and never while the mic is on; frequency limited by `PromptGate`. |
 | `EcosystemSection` | Settings → **More apps** | Metrónomo, Atril, Generador de Tonos with real icon, "Beta" tag and tagline. `showSite: false` (the site is already linked from About). |
 | `AccountSection` / `FedeAccount` | Settings → **Account** | See above. |
@@ -198,7 +199,7 @@ flutter pub get
 flutter run
 ```
 
-> After updating `fede_apps_core`, run `flutter pub get` again: the package version is recorded in `pubspec.lock` (currently 0.5.1). To build without the sibling folder (CI, another machine) replace the path dependency with `git: { url: https://github.com/randazzofederico-coder/fede_apps_core.git, ref: v0.5.1 }`.
+> After updating `fede_apps_core`, run `flutter pub get` again: the package version is recorded in `pubspec.lock` (currently 0.7.0). To build without the sibling folder (CI, another machine) replace the path dependency with `git: { url: https://github.com/randazzofederico-coder/fede_apps_core.git, ref: v0.7.0 }`.
 
 ### Firebase configuration
 
@@ -254,7 +255,7 @@ The app requests microphone access at runtime via `permission_handler`. Platform
 | [`cupertino_icons`](https://pub.dev/packages/cupertino_icons) | ^1.0.8 | iOS-style icons |
 | [`firebase_core`](https://pub.dev/packages/firebase_core) | ^3.12.1 | Firebase initialization |
 | [`url_launcher`](https://pub.dev/packages/url_launcher) | ^6.3.1 | Opening external links (website, forum) |
-| [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) | path `../fede_apps_core` (0.5.1) | Shared ecosystem code: account, usage stats, other-apps suggestion, "More apps", portrait lock on phone web. Brings `firebase_auth`, `cloud_firestore`, `google_sign_in` transitively |
+| [`fede_apps_core`](https://github.com/randazzofederico-coder/fede_apps_core) | path `../fede_apps_core` (0.7.0) | Shared ecosystem code: account, hybrid usage stats (`UsageTracker`/`UsageReporter`), other-apps suggestion, "More apps", portrait lock on phone web. Brings `firebase_auth`, `cloud_firestore`, `google_sign_in` transitively |
 | [`flutter_localizations`](https://api.flutter.dev/flutter/flutter_localizations/flutter_localizations-library.html) | SDK | Localized Material/Cupertino widgets + generated `AppLocalizations` |
 | [`intl`](https://pub.dev/packages/intl) | any (pinned by Flutter SDK) | Message formatting for translations |
 
